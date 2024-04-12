@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"context"
 	"fmt"
 	"log"
@@ -42,7 +43,16 @@ func main() {
 	}
 
 	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
-		tokenString := r.Header.Get("Authorization")[7:] // Assuming "Bearer " prefix
+		realIp, lastIP := readUserIP(r)
+
+		a := r.Header.Get("Authorization")
+		if len(a) < 10 {
+			log.Println("Not auth header for", realIp, ",", lastIP)
+			http.Error(w, "need authorizaton: bearer xyz header", http.StatusUnauthorized)
+			return
+		}
+		// Assuming "Bearer " prefix
+		tokenString := a[7:]
 
 		// Parse and verify the token
 		token, err := jwt.Parse(tokenString, func(token *jwt.Token) (interface{}, error) {
@@ -79,11 +89,13 @@ func main() {
 		})
 
 		if err != nil {
-			http.Error(w, "Failed to verify token: "+err.Error(), http.StatusUnauthorized)
+			log.Println("Failed to verify token for", realIp, ",", lastIP, err.Error())
+			http.Error(w, "Failed to verify token.", http.StatusUnauthorized)
 			return
 		}
 
 		if !token.Valid {
+			log.Println("Invalid token for", realIp, ",", lastIP, err.Error())
 			http.Error(w, "Invalid token", http.StatusUnauthorized)
 			return
 		}
@@ -91,14 +103,18 @@ func main() {
 		// TODO make this more customizable
 		// but for now this fills the need
 		cmd := exec.Command("/bin/bash", "/rollout.sh")
+
+		var stdErr bytes.Buffer
+		cmd.Stderr = &stdErr
 		cmd.Env = os.Environ()
 		if err := cmd.Run(); err != nil {
-			fmt.Printf("Failed to execute script: %v\n", err)
+			log.Printf("Error running %s command: %s", cmd.String(), stdErr.String())
 			http.Error(w, "Script execution failed", http.StatusInternalServerError)
 			return
 		}
 
-		fmt.Fprintln(w, "Token is valid")
+		log.Println("Rollout complete for", realIp, ",", lastIP)
+		fmt.Fprintln(w, "Rollout complete")
 	})
 
 	fmt.Println("Server is running on http://localhost:8080/")
@@ -106,4 +122,13 @@ func main() {
 	if err != nil {
 		log.Fatal("Unable to start service")
 	}
+}
+
+func readUserIP(r *http.Request) (string, string) {
+	realIP := r.Header.Get("X-Real-Ip")
+	lastIP := r.RemoteAddr
+	if realIP == "" {
+		realIP = r.Header.Get("X-Forwarded-For")
+	}
+	return realIP, lastIP
 }
