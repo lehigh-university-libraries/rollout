@@ -103,9 +103,27 @@ func CreateSignedJWT(kid, aud string, exp int64, privateKey *rsa.PrivateKey) (st
 	return signedToken, nil
 }
 
-func TestTokenVerification(t *testing.T) {
-	os.Setenv("JWT_AUD", "test-success")
+// Utility function to create a request with an Authorization header
+func createRequest(authHeader string) *http.Request {
+	req, _ := http.NewRequest("GET", "/", nil)
+	req.Header.Set("Authorization", authHeader)
+	return req
+}
 
+// TestRollout tests the Rollout function with various scenarios
+func TestRollout(t *testing.T) {
+	testFile := "/tmp/rollout-test.txt"
+	os.Setenv("ROLLOUT_CMD", "touch")
+	os.Setenv("ROLLOUT_ARGS", testFile)
+
+	// make sure the test file doesn't exist
+	err := RemoveFileIfExists(testFile)
+	if err != nil {
+		log.Fatalf("Unable to cleanup test file: %v", err)
+	}
+
+	// mock the JWKS server response
+	os.Setenv("JWT_AUD", "test-success")
 	kid := "no-kidding"
 	aud := os.Getenv("JWT_AUD")
 	privateKey, publicKey, err := GenerateRSAKeys()
@@ -114,58 +132,131 @@ func TestTokenVerification(t *testing.T) {
 	}
 	server := setupMockJwksServer(publicKey, kid)
 	defer server.Close()
-
 	jwkURL := fmt.Sprintf("%s/oauth/discovery/keys", server.URL)
 	os.Setenv("JWKS_URI", jwkURL)
 
-	// make sure valid tokens succeed
-	exp := time.Now().Add(time.Hour * 24).Unix()
+	// get a valid token
+	exp := time.Now().Add(time.Hour * 1).Unix()
 	jwtToken, err := CreateSignedJWT(kid, aud, exp, privateKey)
 	if err != nil {
 		t.Fatalf("Unable to create a JWT with our test key: %v", err)
 	}
-	token, err := jwt.Parse(jwtToken, ParseToken)
-	assert.NoError(t, err)
-	assert.True(t, token.Valid)
 
 	// make sure invalid kids fail
-	jwtToken, err = CreateSignedJWT("just-kidding", aud, exp, privateKey)
+	badKidJwtToken, err := CreateSignedJWT("just-kidding", aud, exp, privateKey)
 	if err != nil {
 		t.Fatalf("Unable to create a JWT with our test key: %v", err)
 	}
-	token, err = jwt.Parse(jwtToken, ParseToken)
-	assert.Error(t, err)
-	assert.False(t, token.Valid)
 
 	// make sure if we pass a JWT signed by another private key it fails
 	badPrivateKey, _, err := GenerateRSAKeys()
 	if err != nil {
 		t.Fatalf("Unable to generate a new private key")
 	}
-	jwtToken, err = CreateSignedJWT(kid, aud, exp, badPrivateKey)
+	badPrivKeyjwtToken, err := CreateSignedJWT(kid, aud, exp, badPrivateKey)
 	if err != nil {
 		t.Fatalf("Unable to create a JWT with our new test key: %v", err)
 	}
-	token, err = jwt.Parse(jwtToken, ParseToken)
-	assert.Error(t, err)
-	assert.False(t, token.Valid)
 
 	// make sure expired JWTs fail
 	expired := time.Now().Add(time.Hour * -1).Unix()
-	jwtToken, err = CreateSignedJWT(kid, aud, expired, privateKey)
+	expiredJwtToken, err := CreateSignedJWT(kid, aud, expired, privateKey)
 	if err != nil {
 		t.Fatalf("Unable to create a JWT with our test key: %v", err)
 	}
-	token, err = jwt.Parse(jwtToken, ParseToken)
-	assert.Error(t, err)
-	assert.False(t, token.Valid)
 
 	// make sure bad audience JWTs fail
-	jwtToken, err = CreateSignedJWT(kid, "different-audience", exp, privateKey)
+	badAudJwtToken, err := CreateSignedJWT(kid, "different-audience", exp, privateKey)
 	if err != nil {
 		t.Fatalf("Unable to create a JWT with our test key: %v", err)
 	}
-	token, err = jwt.Parse(jwtToken, ParseToken)
-	assert.Error(t, err)
-	assert.False(t, token.Valid)
+
+	// Define test cases
+	tests := []struct {
+		name           string
+		authHeader     string
+		expectedStatus int
+		expectedBody   string
+	}{
+		{
+			name:           "No Authorization Header",
+			authHeader:     "",
+			expectedStatus: http.StatusUnauthorized,
+			expectedBody:   "need authorizaton: bearer xyz header\n",
+		},
+		{
+			name:           "Invalid Token",
+			authHeader:     "Bearer invalidtoken",
+			expectedStatus: http.StatusUnauthorized,
+			expectedBody:   "Failed to verify token.\n",
+		},
+		{
+			name:           "Bad kid Token",
+			authHeader:     "Bearer " + badKidJwtToken,
+			expectedStatus: http.StatusUnauthorized,
+			expectedBody:   "Failed to verify token.\n",
+		},
+		{
+			name:           "Signed from wrong JWKS Token",
+			authHeader:     "Bearer " + badPrivKeyjwtToken,
+			expectedStatus: http.StatusUnauthorized,
+			expectedBody:   "Failed to verify token.\n",
+		},
+		{
+			name:           "Expired Token",
+			authHeader:     "Bearer " + expiredJwtToken,
+			expectedStatus: http.StatusUnauthorized,
+			expectedBody:   "Failed to verify token.\n",
+		},
+		{
+			name:           "Bad aud Token",
+			authHeader:     "Bearer " + badAudJwtToken,
+			expectedStatus: http.StatusUnauthorized,
+			expectedBody:   "Failed to verify token.\n",
+		},
+		{
+			name:           "Valid Token and Successful Command",
+			authHeader:     "Bearer " + jwtToken,
+			expectedStatus: http.StatusOK,
+			expectedBody:   "Rollout complete\n",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			recorder := httptest.NewRecorder()
+			request := createRequest(tt.authHeader)
+
+			Rollout(recorder, request)
+
+			assert.Equal(t, tt.expectedStatus, recorder.Code)
+			assert.Equal(t, tt.expectedBody, recorder.Body.String())
+		})
+	}
+
+	// make sure the rollout command actually ran the command
+	_, err = os.Stat(testFile)
+	if err != nil && os.IsNotExist(err) {
+		t.Errorf("The successful test did not create the expected file")
+	}
+
+	// cleanup
+	err = RemoveFileIfExists(testFile)
+	if err != nil {
+		log.Fatalf("Unable to cleanup test file: %v", err)
+	}
+}
+
+func RemoveFileIfExists(filePath string) error {
+	_, err := os.Stat(filePath)
+	if err == nil {
+		err := os.Remove(filePath)
+		if err != nil {
+			return fmt.Errorf("failed to remove file: %v", err)
+		}
+	} else if err != nil && !os.IsNotExist(err) {
+		return fmt.Errorf("error checking file: %v", err)
+	}
+
+	return nil
 }

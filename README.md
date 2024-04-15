@@ -33,6 +33,8 @@ This service requires two envionrment variables.
 
 - `JWKS_URI` - the URL of the OIDC Provider's [JSON Web Key (JWK) set document](https://www.rfc-editor.org/info/rfc7517). This is used to ensure the JWT was signed by the provider.
 - `JWT_AUD` - the audience set in the JWT token.
+- `ROLLOUT_CMD` (default: `/bin/bash`) - the command to execute a rollout
+- `ROLLOUT_ARGS` (default: `/rollout.sh` ) - the args to pass to `ROLLOUT_CMD`
 
 ### GitHub
 
@@ -55,4 +57,3 @@ JWT_AUD=aud-string-you-set-in-your-job
 - [ ] Install instructions using binary
 - [ ] Tag/push versions to dockerhub
 - [ ] Allow more custom auth handling
-- [ ] Allow more custom rollout than a single bash script
