@@ -8,23 +8,18 @@ import (
 	"net/http"
 	"os"
 	"os/exec"
+	"strings"
 
 	"github.com/golang-jwt/jwt/v4"
 	"github.com/lestrrat-go/jwx/jwk"
 )
 
-var (
-	gitLabJwksURL, aud string
-)
-
 func main() {
 
-	gitLabJwksURL = os.Getenv("JWKS_URI")
-	if gitLabJwksURL == "" {
+	if os.Getenv("JWKS_URI") == "" {
 		log.Fatal("JWKS_URI is required. e.g. JWKS_URI=https://gitlab.com/oauth/discovery/keys")
 	}
-	aud = os.Getenv("JWT_AUD")
-	if aud == "" {
+	if os.Getenv("JWT_AUD") == "" {
 		log.Fatal("JWT_AUD is required. This needs to be the aud in the JWT you except this service to handle.")
 	}
 
@@ -34,15 +29,6 @@ func main() {
 	if err != nil {
 		log.Fatal("Unable to start service")
 	}
-}
-
-func readUserIP(r *http.Request) (string, string) {
-	realIP := r.Header.Get("X-Real-Ip")
-	lastIP := r.RemoteAddr
-	if realIP == "" {
-		realIP = r.Header.Get("X-Forwarded-For")
-	}
-	return realIP, lastIP
 }
 
 func Rollout(w http.ResponseWriter, r *http.Request) {
@@ -71,9 +57,15 @@ func Rollout(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// TODO make this more customizable
-	// but for now this fills the need
-	cmd := exec.Command("/bin/bash", "/rollout.sh")
+	name := os.Getenv("ROLLOUT_CMD")
+	if name == "" {
+		name = "/bin/bash"
+	}
+	args := os.Getenv("ROLLOUT_ARGS")
+	if args == "" {
+		args = "/rollout.sh"
+	}
+	cmd := exec.Command(name, strings.Split(args, " ")...)
 
 	var stdOut, stdErr bytes.Buffer
 	cmd.Stdout = &stdOut
@@ -111,10 +103,10 @@ func ParseToken(token *jwt.Token) (interface{}, error) {
 	}
 
 	ctx := context.Background()
-	gitLabJwksURL = os.Getenv("JWKS_URI")
-	jwksSet, err := jwk.Fetch(ctx, gitLabJwksURL)
+	jwksUri := os.Getenv("JWKS_URI")
+	jwksSet, err := jwk.Fetch(ctx, jwksUri)
 	if err != nil {
-		log.Fatalf("Unable to fetch JWK set from %s: %v", gitLabJwksURL, err)
+		log.Fatalf("Unable to fetch JWK set from %s: %v", jwksUri, err)
 	}
 	// Find the appropriate key in JWKS
 	key, ok := jwksSet.LookupKeyID(kid)
@@ -128,4 +120,13 @@ func ParseToken(token *jwt.Token) (interface{}, error) {
 	}
 
 	return pubkey, nil
+}
+
+func readUserIP(r *http.Request) (string, string) {
+	realIP := r.Header.Get("X-Real-Ip")
+	lastIP := r.RemoteAddr
+	if realIP == "" {
+		realIP = r.Header.Get("X-Forwarded-For")
+	}
+	return realIP, lastIP
 }
