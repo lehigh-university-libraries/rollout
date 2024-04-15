@@ -61,7 +61,12 @@ func Rollout(w http.ResponseWriter, r *http.Request) {
 		ccStr := os.Getenv("CUSTOM_CLAIMS")
 		log.Println(ccStr)
 		var cc map[string]string
-		json.Unmarshal([]byte(ccStr), &cc)
+		err = json.Unmarshal([]byte(ccStr), &cc)
+		if err != nil {
+			log.Println("Unable to read token claims for", realIp, ",", lastIP)
+			http.Error(w, "Invalid token", http.StatusUnauthorized)
+			return
+		}
 		for k, v := range cc {
 			if claims[k] != v {
 				log.Println("Claim for", k, "doesn't match", realIp, ",", lastIP)
