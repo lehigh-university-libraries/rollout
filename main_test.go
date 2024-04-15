@@ -80,13 +80,14 @@ func setupMockJwksServer(pub *rsa.PublicKey, kid string) *httptest.Server {
 	return httptest.NewServer(handler)
 }
 
-func CreateSignedJWT(kid, aud string, exp int64, privateKey *rsa.PrivateKey) (string, error) {
+func CreateSignedJWT(kid, aud, claim string, exp int64, privateKey *rsa.PrivateKey) (string, error) {
 	// Define the claims of the token. You can add more claims based on your needs.
 	claims := jwt.MapClaims{
 		"sub": "1234567890",
 		"aud": aud,
 		"iat": time.Now().Unix(),
 		"exp": exp,
+		"foo": claim,
 	}
 
 	// Create a new token object with the claims and the signing method
@@ -126,6 +127,7 @@ func TestRollout(t *testing.T) {
 	os.Setenv("JWT_AUD", "test-success")
 	kid := "no-kidding"
 	aud := os.Getenv("JWT_AUD")
+	claim := "bar"
 	privateKey, publicKey, err := GenerateRSAKeys()
 	if err != nil {
 		log.Fatalf("Unable to generate RSA keys: %v", err)
@@ -137,13 +139,13 @@ func TestRollout(t *testing.T) {
 
 	// get a valid token
 	exp := time.Now().Add(time.Hour * 1).Unix()
-	jwtToken, err := CreateSignedJWT(kid, aud, exp, privateKey)
+	jwtToken, err := CreateSignedJWT(kid, aud, claim, exp, privateKey)
 	if err != nil {
 		t.Fatalf("Unable to create a JWT with our test key: %v", err)
 	}
 
 	// make sure invalid kids fail
-	badKidJwtToken, err := CreateSignedJWT("just-kidding", aud, exp, privateKey)
+	badKidJwtToken, err := CreateSignedJWT("just-kidding", aud, claim, exp, privateKey)
 	if err != nil {
 		t.Fatalf("Unable to create a JWT with our test key: %v", err)
 	}
@@ -153,20 +155,26 @@ func TestRollout(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Unable to generate a new private key")
 	}
-	badPrivKeyjwtToken, err := CreateSignedJWT(kid, aud, exp, badPrivateKey)
+	badPrivKeyjwtToken, err := CreateSignedJWT(kid, aud, claim, exp, badPrivateKey)
 	if err != nil {
 		t.Fatalf("Unable to create a JWT with our new test key: %v", err)
 	}
 
 	// make sure expired JWTs fail
 	expired := time.Now().Add(time.Hour * -1).Unix()
-	expiredJwtToken, err := CreateSignedJWT(kid, aud, expired, privateKey)
+	expiredJwtToken, err := CreateSignedJWT(kid, aud, claim, expired, privateKey)
 	if err != nil {
 		t.Fatalf("Unable to create a JWT with our test key: %v", err)
 	}
 
 	// make sure bad audience JWTs fail
-	badAudJwtToken, err := CreateSignedJWT(kid, "different-audience", exp, privateKey)
+	badAudJwtToken, err := CreateSignedJWT(kid, "different-audience", claim, exp, privateKey)
+	if err != nil {
+		t.Fatalf("Unable to create a JWT with our test key: %v", err)
+	}
+
+	// make sure JWTs with a bad custom claim fail
+	badClaimJwtToken, err := CreateSignedJWT(kid, aud, "bad-claim", exp, privateKey)
 	if err != nil {
 		t.Fatalf("Unable to create a JWT with our test key: %v", err)
 	}
@@ -177,6 +185,7 @@ func TestRollout(t *testing.T) {
 		authHeader     string
 		expectedStatus int
 		expectedBody   string
+		claim          map[string]string
 	}{
 		{
 			name:           "No Authorization Header",
@@ -215,18 +224,34 @@ func TestRollout(t *testing.T) {
 			expectedBody:   "Failed to verify token.\n",
 		},
 		{
+			name:           "Bad custom claim",
+			authHeader:     "Bearer " + badClaimJwtToken,
+			expectedStatus: http.StatusUnauthorized,
+			expectedBody:   "Invalid token\n",
+		},
+		{
+			name:           "No custom claim",
+			authHeader:     "Bearer " + jwtToken,
+			expectedStatus: http.StatusOK,
+			expectedBody:   "Rollout complete\n",
+		},
+		{
 			name:           "Valid Token and Successful Command",
 			authHeader:     "Bearer " + jwtToken,
 			expectedStatus: http.StatusOK,
 			expectedBody:   "Rollout complete\n",
 		},
 	}
-
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			recorder := httptest.NewRecorder()
 			request := createRequest(tt.authHeader)
+			if tt.name == "No custom claim" {
+				os.Setenv("CUSTOM_CLAIMS", "")
+			} else {
+				os.Setenv("CUSTOM_CLAIMS", `{"foo": "bar"}`)
 
+			}
 			Rollout(recorder, request)
 
 			assert.Equal(t, tt.expectedStatus, recorder.Code)
