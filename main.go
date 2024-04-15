@@ -3,6 +3,7 @@ package main
 import (
 	"bytes"
 	"context"
+	"encoding/json"
 	"fmt"
 	"log"
 	"net/http"
@@ -51,7 +52,25 @@ func Rollout(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if !token.Valid {
-		log.Println("Invalid token for", realIp, ",", lastIP, err.Error())
+		log.Println("Invalid token for", realIp, ",", lastIP)
+		http.Error(w, "Invalid token", http.StatusUnauthorized)
+		return
+	}
+
+	if claims, ok := token.Claims.(jwt.MapClaims); ok {
+		ccStr := os.Getenv("CUSTOM_CLAIMS")
+		log.Println(ccStr)
+		var cc map[string]string
+		json.Unmarshal([]byte(ccStr), &cc)
+		for k, v := range cc {
+			if claims[k] != v {
+				log.Println("Claim for", k, "doesn't match", realIp, ",", lastIP)
+				http.Error(w, "Invalid token", http.StatusUnauthorized)
+				return
+			}
+		}
+	} else {
+		log.Println("Unable to read token claims for", realIp, ",", lastIP)
 		http.Error(w, "Invalid token", http.StatusUnauthorized)
 		return
 	}
