@@ -121,7 +121,6 @@ func TestRollout(t *testing.T) {
 	if err != nil {
 		log.Fatalf("Unable to cleanup test file: %v", err)
 	}
-	defer RemoveFileIfExists(testFile)
 
 	// mock the JWKS server response
 	os.Setenv("JWT_AUD", "test-success")
@@ -241,6 +240,11 @@ func TestRollout(t *testing.T) {
 		t.Errorf("The successful test did not create the expected file")
 	}
 
+	// cleanup
+	err = RemoveFileIfExists(testFile)
+	if err != nil {
+		log.Fatalf("Unable to cleanup test file: %v", err)
+	}
 }
 
 func RemoveFileIfExists(filePath string) error {
@@ -250,7 +254,7 @@ func RemoveFileIfExists(filePath string) error {
 		if err != nil {
 			return fmt.Errorf("failed to remove file: %v", err)
 		}
-	} else if !os.IsNotExist(err) {
+	} else if err != nil && !os.IsNotExist(err) {
 		return fmt.Errorf("error checking file: %v", err)
 	}
 
