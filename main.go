@@ -57,9 +57,9 @@ func Rollout(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if claims, ok := token.Claims.(jwt.MapClaims); ok {
-		ccStr := os.Getenv("CUSTOM_CLAIMS")
-		log.Println(ccStr)
+	ccStr := os.Getenv("CUSTOM_CLAIMS")
+	claims, ok := token.Claims.(jwt.MapClaims)
+	if ok && ccStr != "" {
 		var cc map[string]string
 		err = json.Unmarshal([]byte(ccStr), &cc)
 		if err != nil {
@@ -74,7 +74,7 @@ func Rollout(w http.ResponseWriter, r *http.Request) {
 				return
 			}
 		}
-	} else {
+	} else if !ok {
 		log.Println("Unable to read token claims for", realIp, ",", lastIP)
 		http.Error(w, "Invalid token", http.StatusUnauthorized)
 		return
