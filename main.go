@@ -10,12 +10,11 @@ import (
 	"os/exec"
 	"strings"
 
-	"github.com/golang-jwt/jwt/v4"
+	"github.com/golang-jwt/jwt/v5"
 	"github.com/lestrrat-go/jwx/jwk"
 )
 
 func main() {
-
 	if os.Getenv("JWKS_URI") == "" {
 		log.Fatal("JWKS_URI is required. e.g. JWKS_URI=https://gitlab.com/oauth/discovery/keys")
 	}
@@ -88,12 +87,12 @@ func ParseToken(token *jwt.Token) (interface{}, error) {
 	}
 
 	// Check audience claim
-	claims, ok := token.Claims.(jwt.MapClaims)
-	if !ok {
-		return nil, fmt.Errorf("error retrieving claims from token")
-	}
 	aud := os.Getenv("JWT_AUD")
-	if !claims.VerifyAudience(aud, true) {
+	taud, err := token.Claims.GetAudience()
+	if err != nil {
+		return nil, fmt.Errorf("could not get aud claim: %v", err)
+	}
+	if !strInSlice(aud, taud) {
 		return nil, fmt.Errorf("invalid audience. Expected: %s", aud)
 	}
 
@@ -129,4 +128,13 @@ func readUserIP(r *http.Request) (string, string) {
 		realIP = r.Header.Get("X-Forwarded-For")
 	}
 	return realIP, lastIP
+}
+
+func strInSlice(e string, s []string) bool {
+	for _, a := range s {
+		if a == e {
+			return true
+		}
+	}
+	return false
 }
