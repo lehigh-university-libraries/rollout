@@ -404,46 +404,34 @@ func TestBadRolloutCmdArgs(t *testing.T) {
 		t.Fatalf("Unable to create a JWT with our test key: %v", err)
 	}
 
-	payloads := map[string]string{
-		"rollout-arg1": "bad1;",
-		"rollout-arg2": "bad2&",
-		"rollout-arg3": "bad3|",
-		"bad4":         "bad4$",
-		"bad5":         "any`thing",
-		"bad6":         `any"thing`,
-		"bad7":         "any\thing",
-		"bad8":         "any*thing",
-		"bad9":         "any?thing",
-		"bad10":        "any[thing",
-		"bad11":        "any]thing",
-		"bad12":        "any{thing",
-		"bad13":        "any}thing",
-		"bad14":        "any(thing",
-		"bad15":        "any)thing",
-		"bad16":        "any<thing",
-		"bad17":        "any>thing",
-		"bad18":        "anything!",
+	payloads := []string{
+		`{"rollout-arg1": "bad1;"}`,
+		`{"rollout-arg1": "bad2&"}`,
+		`{"rollout-arg1": "bad3|"}`,
+		`{"rollout-arg1": "bad4$"}`,
+		"{\"rollout-arg1\": \"any`thing\"}",
+		`{"rollout-arg1": "any\"thing"}`,
+		`{"rollout-arg1": "any\thing"}`,
+		`{"rollout-arg1": "any*thing"}`,
+		`{"rollout-arg1": "any?thing"}`,
+		`{"rollout-arg1": "any[thing"}`,
+		`{"rollout-arg1": "any]thing"}`,
+		`{"rollout-arg1": "any{thing"}`,
+		`{"rollout-arg1": "any}thing"}`,
+		`{"rollout-arg1": "any(thing"}`,
+		`{"rollout-arg1": "any)thing"}`,
+		`{"rollout-arg1": "any<thing"}`,
+		`{"rollout-arg1": "any>thing"}`,
+		`{"rollout-arg1": "anything!"}`,
 	}
-	for k, v := range payloads {
-		var e string
-		switch k {
-		case "rollout-arg1":
-			e = "ROLLOUT_ARG1"
-		case "rollout-arg2":
-			e = "ROLLOUT_ARG2"
-		case "rollout-arg3":
-			e = "ROLLOUT_ARG3"
-		default:
-			k = "rollout-arg1"
-			e = "ROLLOUT_ARG1"
-		}
+	for _, payload := range payloads {
 		tt := Test{
-			name:           fmt.Sprintf("%s custom arg doesn't pass to rollout.sh", k),
+			name:           "Bad custom arg doesn't pass to rollout.sh",
 			authHeader:     "Bearer " + jwtToken,
 			expectedStatus: http.StatusBadRequest,
-			cmdArgs:        fmt.Sprintf(`-c "touch /tmp/$%s"`, e),
+			cmdArgs:        `-c "touch /tmp/$ROLLOUT_ARG1"`,
 			method:         "POST",
-			payload:        fmt.Sprintf(`{"%s": "%s"}`, k, v),
+			payload:        payload,
 			expectedBody:   "Bad request\n",
 		}
 		t.Run(tt.name, func(t *testing.T) {

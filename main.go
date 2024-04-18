@@ -151,7 +151,7 @@ func ParseToken(token *jwt.Token) (interface{}, error) {
 	jwksUri := os.Getenv("JWKS_URI")
 	jwksSet, err := jwk.Fetch(ctx, jwksUri)
 	if err != nil {
-		return nil, fmt.Errorf("Unable to fetch JWK set from %s: %v", jwksUri, err)
+		return nil, fmt.Errorf("unable to fetch JWK set from %s: %v", jwksUri, err)
 	}
 	// Find the appropriate key in JWKS
 	key, ok := jwksSet.LookupKeyID(kid)
