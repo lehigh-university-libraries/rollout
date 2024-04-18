@@ -18,6 +18,11 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
+var (
+	kid, claim, aud string
+	privateKey      *rsa.PrivateKey
+)
+
 // createJWKS creates a JWKS JSON representation with a single RSA key.
 func mockJWKS(pub *rsa.PublicKey, kid string) (string, error) {
 	jwks := struct {
@@ -80,6 +85,23 @@ func setupMockJwksServer(pub *rsa.PublicKey, kid string) *httptest.Server {
 	return httptest.NewServer(handler)
 }
 
+func createMockJwksServer() *httptest.Server {
+	var publicKey *rsa.PublicKey
+	var err error
+
+	os.Setenv("JWT_AUD", "test-success")
+	kid = "no-kidding"
+	aud = os.Getenv("JWT_AUD")
+	claim = "bar"
+	privateKey, publicKey, err = GenerateRSAKeys()
+	if err != nil {
+		log.Fatalf("Unable to generate RSA keys: %v", err)
+	}
+	testServer := setupMockJwksServer(publicKey, kid)
+	os.Setenv("JWKS_URI", fmt.Sprintf("%s/oauth/discovery/keys", testServer.URL))
+	return testServer
+}
+
 func CreateSignedJWT(kid, aud, claim string, exp int64, privateKey *rsa.PrivateKey) (string, error) {
 	// Define the claims of the token. You can add more claims based on your needs.
 	claims := jwt.MapClaims{
@@ -114,6 +136,8 @@ func createRequest(authHeader string) *http.Request {
 // TestRollout tests the Rollout function with various scenarios
 func TestRollout(t *testing.T) {
 	testFile := "/tmp/rollout-test.txt"
+
+	// have our test rollout cmd just touch a file
 	os.Setenv("ROLLOUT_CMD", "touch")
 	os.Setenv("ROLLOUT_ARGS", testFile)
 
@@ -123,19 +147,8 @@ func TestRollout(t *testing.T) {
 		log.Fatalf("Unable to cleanup test file: %v", err)
 	}
 
-	// mock the JWKS server response
-	os.Setenv("JWT_AUD", "test-success")
-	kid := "no-kidding"
-	aud := os.Getenv("JWT_AUD")
-	claim := "bar"
-	privateKey, publicKey, err := GenerateRSAKeys()
-	if err != nil {
-		log.Fatalf("Unable to generate RSA keys: %v", err)
-	}
-	server := setupMockJwksServer(publicKey, kid)
-	defer server.Close()
-	jwkURL := fmt.Sprintf("%s/oauth/discovery/keys", server.URL)
-	os.Setenv("JWKS_URI", jwkURL)
+	s := createMockJwksServer()
+	defer s.Close()
 
 	// get a valid token
 	exp := time.Now().Add(time.Hour * 1).Unix()
@@ -179,13 +192,13 @@ func TestRollout(t *testing.T) {
 		t.Fatalf("Unable to create a JWT with our test key: %v", err)
 	}
 
-	// Define test cases
 	tests := []struct {
 		name           string
 		authHeader     string
 		expectedStatus int
 		expectedBody   string
 		claim          map[string]string
+		cmdArgs        string
 	}{
 		{
 			name:           "No Authorization Header",
@@ -236,6 +249,13 @@ func TestRollout(t *testing.T) {
 			expectedBody:   "Rollout complete\n",
 		},
 		{
+			name:           "Rollout cmd with quotes parsed correctly",
+			authHeader:     "Bearer " + jwtToken,
+			expectedStatus: http.StatusOK,
+			cmdArgs:        `/tmp/rollout-shlex-test /tmp/"rollout test filename wrapped in quotes"`,
+			expectedBody:   "Rollout complete\n",
+		},
+		{
 			name:           "Valid Token and Successful Command",
 			authHeader:     "Bearer " + jwtToken,
 			expectedStatus: http.StatusOK,
@@ -250,8 +270,11 @@ func TestRollout(t *testing.T) {
 				os.Setenv("CUSTOM_CLAIMS", "")
 			} else {
 				os.Setenv("CUSTOM_CLAIMS", `{"foo": "bar"}`)
-
 			}
+			if tt.cmdArgs != "" {
+				os.Setenv("ROLLOUT_ARGS", tt.cmdArgs)
+			}
+
 			Rollout(recorder, request)
 
 			assert.Equal(t, tt.expectedStatus, recorder.Code)
@@ -259,16 +282,24 @@ func TestRollout(t *testing.T) {
 		})
 	}
 
-	// make sure the rollout command actually ran the command
-	_, err = os.Stat(testFile)
-	if err != nil && os.IsNotExist(err) {
-		t.Errorf("The successful test did not create the expected file")
+	testFiles := []string{
+		testFile,
+		"/tmp/rollout-shlex-test",
+		`/tmp/rollout test filename wrapped in quotes`,
 	}
+	for _, f := range testFiles {
+		// make sure the rollout command actually ran the command
+		// which creates the file
+		_, err = os.Stat(f)
+		if err != nil && os.IsNotExist(err) {
+			t.Errorf("The successful test did not create the expected file %s", f)
+		}
 
-	// cleanup
-	err = RemoveFileIfExists(testFile)
-	if err != nil {
-		log.Fatalf("Unable to cleanup test file: %v", err)
+		// cleanup
+		err = RemoveFileIfExists(f)
+		if err != nil {
+			log.Fatalf("Unable to cleanup test file: %v", err)
+		}
 	}
 }
 

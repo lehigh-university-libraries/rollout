@@ -9,11 +9,16 @@ import (
 	"net/http"
 	"os"
 	"os/exec"
-	"strings"
 
 	"github.com/golang-jwt/jwt/v5"
+	"github.com/google/shlex"
 	"github.com/lestrrat-go/jwx/jwk"
 )
+
+func init() {
+	// call getArgs early to fail on a bad config
+	getArgs()
+}
 
 func main() {
 	if os.Getenv("JWKS_URI") == "" {
@@ -84,11 +89,7 @@ func Rollout(w http.ResponseWriter, r *http.Request) {
 	if name == "" {
 		name = "/bin/bash"
 	}
-	args := os.Getenv("ROLLOUT_ARGS")
-	if args == "" {
-		args = "/rollout.sh"
-	}
-	cmd := exec.Command(name, strings.Split(args, " ")...)
+	cmd := exec.Command(name, getArgs()...)
 
 	var stdOut, stdErr bytes.Buffer
 	cmd.Stdout = &stdOut
@@ -161,4 +162,17 @@ func strInSlice(e string, s []string) bool {
 		}
 	}
 	return false
+}
+
+func getArgs() []string {
+	args := os.Getenv("ROLLOUT_ARGS")
+	if args == "" {
+		args = "/rollout.sh"
+	}
+	rolloutArgs, err := shlex.Split(args)
+	if err != nil {
+		log.Fatalf("Error parsing ROLLOUT_ARGS %s: %v", args, err)
+	}
+
+	return rolloutArgs
 }

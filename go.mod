@@ -4,6 +4,7 @@ go 1.22.0
 
 require (
 	github.com/golang-jwt/jwt/v5 v5.2.1
+	github.com/google/shlex v0.0.0-20191202100458-e7afc7fbc510
 	github.com/lestrrat-go/jwx v1.2.29
 	github.com/stretchr/testify v1.9.0
 )
