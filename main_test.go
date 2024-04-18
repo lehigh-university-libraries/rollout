@@ -6,11 +6,13 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
+	"io"
 	"log/slog"
 	"math/big"
 	"net/http"
 	"net/http/httptest"
 	"os"
+	"strings"
 	"testing"
 	"time"
 
@@ -22,6 +24,16 @@ var (
 	kid, claim, aud string
 	privateKey      *rsa.PrivateKey
 )
+
+type Test struct {
+	name           string
+	authHeader     string
+	expectedStatus int
+	expectedBody   string
+	cmdArgs        string
+	method         string
+	payload        string
+}
 
 // createJWKS creates a JWKS JSON representation with a single RSA key.
 func mockJWKS(pub *rsa.PublicKey, kid string) (string, error) {
@@ -130,14 +142,14 @@ func CreateSignedJWT(kid, aud, claim string, exp int64, privateKey *rsa.PrivateK
 }
 
 // Utility function to create a request with an Authorization header
-func createRequest(authHeader string) *http.Request {
-	req, _ := http.NewRequest("GET", "/", nil)
+func createRequest(authHeader, method string, body io.Reader) *http.Request {
+	req, _ := http.NewRequest(method, "/", body)
 	req.Header.Set("Authorization", authHeader)
 	return req
 }
 
 // TestRollout tests the Rollout function with various scenarios
-func TestRollout(t *testing.T) {
+func TestRolloutAuth(t *testing.T) {
 	testFile := "/tmp/rollout-test.txt"
 
 	// have our test rollout cmd just touch a file
@@ -196,14 +208,7 @@ func TestRollout(t *testing.T) {
 		t.Fatalf("Unable to create a JWT with our test key: %v", err)
 	}
 
-	tests := []struct {
-		name           string
-		authHeader     string
-		expectedStatus int
-		expectedBody   string
-		claim          map[string]string
-		cmdArgs        string
-	}{
+	tests := []Test{
 		{
 			name:           "No Authorization Header",
 			authHeader:     "",
@@ -269,7 +274,7 @@ func TestRollout(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			recorder := httptest.NewRecorder()
-			request := createRequest(tt.authHeader)
+			request := createRequest(tt.authHeader, "GET", nil)
 			if tt.name == "No custom claim" {
 				os.Setenv("CUSTOM_CLAIMS", "")
 			} else {
@@ -285,13 +290,92 @@ func TestRollout(t *testing.T) {
 			assert.Equal(t, tt.expectedBody, recorder.Body.String())
 		})
 	}
-
 	testFiles := []string{
 		testFile,
 		"/tmp/rollout-shlex-test",
 		`/tmp/rollout test filename wrapped in quotes`,
 	}
 	for _, f := range testFiles {
+		// make sure the rollout command actually ran the command
+		// which creates the file
+		_, err = os.Stat(f)
+		if err != nil && os.IsNotExist(err) {
+			t.Errorf("The successful test did not create the expected file %s", f)
+		}
+
+		// cleanup
+		err = RemoveFileIfExists(f)
+		if err != nil {
+			slog.Error("Unable to cleanup test file", "file", f, "err", err)
+			os.Exit(1)
+		}
+	}
+}
+
+func TestRolloutCmdArgs(t *testing.T) {
+	os.Setenv("ROLLOUT_CMD", "/bin/bash")
+	s := createMockJwksServer()
+	defer s.Close()
+
+	// get a valid token
+	exp := time.Now().Add(time.Hour * 1).Unix()
+	jwtToken, err := CreateSignedJWT(kid, aud, claim, exp, privateKey)
+	if err != nil {
+		t.Fatalf("Unable to create a JWT with our test key: %v", err)
+	}
+
+	payloads := map[string]string{
+		"docker-image": "rollout-docker-image-test",
+		"docker-tag":   "rollout-docker-tag-test",
+		"git-branch":   "rollout-git-branch-test",
+		"git-repo":     "rollout-git-repo-test",
+		"rollout-arg1": "rollout-arg1-test",
+		"rollout-arg2": "rollout-arg2-test",
+		"rollout-arg3": "rollout-arg3-test",
+	}
+	for k, v := range payloads {
+		var e string
+		switch k {
+		case "docker-image":
+			e = "DOCKER_IMAGE"
+		case "docker-tag":
+			e = "DOCKER_TAG"
+		case "git-branch":
+			e = "GIT_BRANCH"
+		case "git-repo":
+			e = "GIT_REPO"
+		case "rollout-arg1":
+			e = "ROLLOUT_ARG1"
+		case "rollout-arg2":
+			e = "ROLLOUT_ARG2"
+		case "rollout-arg3":
+			e = "ROLLOUT_ARG3"
+		}
+		tt := Test{
+			name:           fmt.Sprintf("%s custom arg passes to rollout.sh", k),
+			authHeader:     "Bearer " + jwtToken,
+			expectedStatus: http.StatusOK,
+			cmdArgs:        fmt.Sprintf(`-c "touch /tmp/$%s"`, e),
+			method:         "POST",
+			payload:        fmt.Sprintf(`{"%s": "%s"}`, k, v),
+			expectedBody:   "Rollout complete\n",
+		}
+		t.Run(tt.name, func(t *testing.T) {
+			recorder := httptest.NewRecorder()
+			method := "POST"
+			body := strings.NewReader(tt.payload)
+			request := createRequest(tt.authHeader, method, body)
+			os.Setenv("ROLLOUT_ARGS", tt.cmdArgs)
+
+			Rollout(recorder, request)
+
+			assert.Equal(t, tt.expectedStatus, recorder.Code)
+			assert.Equal(t, tt.expectedBody, recorder.Body.String())
+		})
+	}
+
+	for _, v := range payloads {
+		f := "/tmp/" + v
 		// make sure the rollout command actually ran the command
 		// which creates the file
 		_, err = os.Stat(f)

@@ -9,15 +9,26 @@ import (
 	"net/http"
 	"os"
 	"os/exec"
+	"reflect"
 
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/google/shlex"
 	"github.com/lestrrat-go/jwx/jwk"
 )
 
+type RolloutPayload struct {
+	DockerImage string `json:"docker-image" env:"DOCKER_IMAGE"`
+	DockerTag   string `json:"docker-tag" env:"DOCKER_TAG"`
+	GitRepo     string `json:"git-repo" env:"GIT_REPO"`
+	GitBranch   string `json:"git-branch" env:"GIT_BRANCH"`
+	Arg1        string `json:"rollout-arg1" env:"ROLLOUT_ARG1"`
+	Arg2        string `json:"rollout-arg2" env:"ROLLOUT_ARG2"`
+	Arg3        string `json:"rollout-arg3" env:"ROLLOUT_ARG3"`
+}
+
 func init() {
-	// call getArgs early to fail on a bad config
-	getArgs()
+	// call getRolloutCmdArgs early to fail on a bad config
+	getRolloutCmdArgs()
 }
 
 func main() {
@@ -88,11 +99,18 @@ func Rollout(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	err = setCustomArgs(r)
+	if err != nil {
+		slog.Error("Error setting custom logs", "err", err)
+		http.Error(w, "Script execution failed", http.StatusInternalServerError)
+		return
+	}
+
 	name := os.Getenv("ROLLOUT_CMD")
 	if name == "" {
 		name = "/bin/bash"
 	}
-	cmd := exec.Command(name, getArgs()...)
+	cmd := exec.Command(name, getRolloutCmdArgs()...)
 
 	var stdOut, stdErr bytes.Buffer
 	cmd.Stdout = &stdOut
@@ -166,7 +184,7 @@ func strInSlice(e string, s []string) bool {
 	return false
 }
 
-func getArgs() []string {
+func getRolloutCmdArgs() []string {
 	args := os.Getenv("ROLLOUT_ARGS")
 	if args == "" {
 		args = "/rollout.sh"
@@ -178,4 +196,47 @@ func getArgs() []string {
 	}
 
 	return rolloutArgs
+}
+
+func setCustomArgs(r *http.Request) error {
+	if r.Method == "GET" {
+		return nil
+	}
+
+	var payload RolloutPayload
+	decoder := json.NewDecoder(r.Body)
+	err := decoder.Decode(&payload)
+	if err != nil {
+		return err
+	}
+
+	err = setEnvFromStruct(&payload)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func setEnvFromStruct(data interface{}) error {
+	v := reflect.ValueOf(data)
+	if v.Kind() == reflect.Ptr {
+		v = v.Elem()
+	}
+
+	t := v.Type()
+	for i := 0; i < v.NumField(); i++ {
+		field := t.Field(i)
+		if envTag, ok := field.Tag.Lookup("env"); ok {
+			// For now all fields are strings
+			value := v.Field(i).String()
+			if value == "" {
+				continue
+			}
+			if err := os.Setenv(envTag, value); err != nil {
+				return fmt.Errorf("could not set environment variable %s: %v", envTag, err)
+			}
+		}
+	}
+	return nil
 }
