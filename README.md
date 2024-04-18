@@ -63,7 +63,7 @@ These are the environment variables currently supported, keyed by their respecti
 |----------------|---------------| -------------------------------------
 | `docker-image` | `DOCKER_IMAGE`| `{"docker-image": "foo/bar:latest"}` |
 | `docker-tag`   | `DOCKER_TAG`  | `{"docker-tag": "latest"}`           |
-| `git-repo`     | `GIT_REPO`    | `{"repo": "foo/bar:latest"}`         |
+| `git-repo`     | `GIT_REPO`    | `{"git-repo": "foo/bar:latest"}`         |
 | `git-branch`   | `GIT_BRANCH`  | `{"git-branch": "main"}`             |
 | `rollout-arg1` | `ROLLOUT_ARG1`| `{"rollout-arg1": "FOO"}`            |
 | `rollout-arg2` | `ROLLOUT_ARG2`| `{"rollout-arg2": "BAR"}`            |

@@ -325,10 +325,10 @@ func TestRolloutCmdArgs(t *testing.T) {
 	}
 
 	payloads := map[string]string{
-		"docker-image": "rollout-docker-image-test",
+		"docker-image": "us-docker.pkg.dev-project-interal-image:latest",
 		"docker-tag":   "rollout-docker-tag-test",
 		"git-branch":   "rollout-git-branch-test",
-		"git-repo":     "rollout-git-repo-test",
+		"git-repo":     "git@github.com:lehigh-university-libraries-rollout.git",
 		"rollout-arg1": "rollout-arg1-test",
 		"rollout-arg2": "rollout-arg2-test",
 		"rollout-arg3": "rollout-arg3-test",
@@ -382,6 +382,93 @@ func TestRolloutCmdArgs(t *testing.T) {
 		if err != nil && os.IsNotExist(err) {
 			t.Errorf("The successful test did not create the expected file %s", f)
 		}
+
+		// cleanup
+		err = RemoveFileIfExists(f)
+		if err != nil {
+			slog.Error("Unable to cleanup test file", "file", f, "err", err)
+			os.Exit(1)
+		}
+	}
+}
+
+func TestBadRolloutCmdArgs(t *testing.T) {
+	os.Setenv("ROLLOUT_CMD", "/bin/bash")
+	s := createMockJwksServer()
+	defer s.Close()
+
+	// get a valid token
+	exp := time.Now().Add(time.Hour * 1).Unix()
+	jwtToken, err := CreateSignedJWT(kid, aud, claim, exp, privateKey)
+	if err != nil {
+		t.Fatalf("Unable to create a JWT with our test key: %v", err)
+	}
+
+	payloads := map[string]string{
+		"rollout-arg1": "bad1;",
+		"rollout-arg2": "bad2&",
+		"rollout-arg3": "bad3|",
+		"bad4":         "bad4$",
+		"bad5":         "any`thing",
+		"bad6":         `any"thing`,
+		"bad7":         "any\thing",
+		"bad8":         "any*thing",
+		"bad9":         "any?thing",
+		"bad10":        "any[thing",
+		"bad11":        "any]thing",
+		"bad12":        "any{thing",
+		"bad13":        "any}thing",
+		"bad14":        "any(thing",
+		"bad15":        "any)thing",
+		"bad16":        "any<thing",
+		"bad17":        "any>thing",
+		"bad18":        "anything!",
+	}
+	for k, v := range payloads {
+		var e string
+		switch k {
+		case "rollout-arg1":
+			e = "ROLLOUT_ARG1"
+		case "rollout-arg2":
+			e = "ROLLOUT_ARG2"
+		case "rollout-arg3":
+			e = "ROLLOUT_ARG3"
+		default:
+			k = "rollout-arg1"
+			e = "ROLLOUT_ARG1"
+		}
+		tt := Test{
+			name:           fmt.Sprintf("%s custom arg doesn't pass to rollout.sh", k),
+			authHeader:     "Bearer " + jwtToken,
+			expectedStatus: http.StatusBadRequest,
+			cmdArgs:        fmt.Sprintf(`-c "touch /tmp/$%s"`, e),
+			method:         "POST",
+			payload:        fmt.Sprintf(`{"%s": "%s"}`, k, v),
+			expectedBody:   "Bad request\n",
+		}
+		t.Run(tt.name, func(t *testing.T) {
+			recorder := httptest.NewRecorder()
+			method := "POST"
+			body := strings.NewReader(tt.payload)
+			request := createRequest(tt.authHeader, method, body)
+			os.Setenv("ROLLOUT_ARGS", tt.cmdArgs)
+
+			Rollout(recorder, request)
+
+			assert.Equal(t, tt.expectedStatus, recorder.Code)
+			assert.Equal(t, tt.expectedBody, recorder.Body.String())
+		})
+	}
+
+	for _, v := range payloads {
+		f := "/tmp/" + v
+		// make sure the rollout command didn't run the command
+		// which creates the file
+		_, err = os.Stat(f)
+		if err != nil && os.IsNotExist(err) {
+			continue
+		}
+		t.Errorf("The test created a bad file name. Check sanitizing inputs to catch %s", f)
 
 		// cleanup
 		err = RemoveFileIfExists(f)

@@ -10,6 +10,7 @@ import (
 	"os"
 	"os/exec"
 	"reflect"
+	"regexp"
 
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/google/shlex"
@@ -101,8 +102,8 @@ func Rollout(w http.ResponseWriter, r *http.Request) {
 
 	err = setCustomArgs(r)
 	if err != nil {
-		slog.Error("Error setting custom logs", "err", err)
-		http.Error(w, "Script execution failed", http.StatusInternalServerError)
+		slog.Error("Error setting custom args", "err", err)
+		http.Error(w, "Bad request", http.StatusBadRequest)
 		return
 	}
 
@@ -219,6 +220,11 @@ func setCustomArgs(r *http.Request) error {
 }
 
 func setEnvFromStruct(data interface{}) error {
+	regex, err := regexp.Compile(`^[a-zA-Z0-9._\-:\/@]+$`)
+	if err != nil {
+		return fmt.Errorf("failed to compile regex: %v", err)
+	}
+
 	v := reflect.ValueOf(data)
 	if v.Kind() == reflect.Ptr {
 		v = v.Elem()
@@ -232,6 +238,9 @@ func setEnvFromStruct(data interface{}) error {
 			value := v.Field(i).String()
 			if value == "" {
 				continue
+			}
+			if !regex.MatchString(value) {
+				return fmt.Errorf("invalid input for environment variable %s:%s", envTag, value)
 			}
 			if err := os.Setenv(envTag, value); err != nil {
 				return fmt.Errorf("could not set environment variable %s: %v", envTag, err)
