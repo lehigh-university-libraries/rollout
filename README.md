@@ -3,7 +3,10 @@
 Deploy your application from a CI/CD pipeline via `cURL` + JWT auth.
 
 ```
-$ curl -s -d '{"git-branch": "main"}' -H "Authorization: bearer abc..." https://example.com/your/rollout/path
+$ curl -s \
+  -d '{"git-branch": "main"}' \
+  -H "Authorization: bearer abc..." \
+  https://example.com/your/rollout/path
 Rollout complete
 ```
 
