@@ -405,11 +405,10 @@ func TestBadRolloutCmdArgs(t *testing.T) {
 	}
 
 	payloads := []string{
-		`{"rollout-arg1": "bad1;"}`,
-		`{"rollout-arg1": "bad2&"}`,
-		`{"rollout-arg1": "bad3|"}`,
-		`{"rollout-arg1": "bad4$"}`,
-		"{\"rollout-arg1\": \"any`thing\"}",
+		`{"rollout-arg1": "any;thing"}`,
+		`{"rollout-arg1": "any&thing"}`,
+		`{"rollout-arg1": "any|thing"}`,
+		`{"rollout-arg1": "any$thing"}`,
 		`{"rollout-arg1": "any\"thing"}`,
 		`{"rollout-arg1": "any\thing"}`,
 		`{"rollout-arg1": "any*thing"}`,
@@ -423,6 +422,7 @@ func TestBadRolloutCmdArgs(t *testing.T) {
 		`{"rollout-arg1": "any<thing"}`,
 		`{"rollout-arg1": "any>thing"}`,
 		`{"rollout-arg1": "anything!"}`,
+		"{\"rollout-arg1\": \"any`thing\"}",
 	}
 	for _, payload := range payloads {
 		tt := Test{
