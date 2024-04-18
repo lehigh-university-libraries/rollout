@@ -6,7 +6,7 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
-	"log"
+	"log/slog"
 	"math/big"
 	"net/http"
 	"net/http/httptest"
@@ -73,12 +73,14 @@ func setupMockJwksServer(pub *rsa.PublicKey, kid string) *httptest.Server {
 		w.WriteHeader(http.StatusOK)
 		jwks, err := mockJWKS(pub, kid)
 		if err != nil {
-			log.Fatalf("Unable to generate RSA keys: %v", err)
+			slog.Error("Unable to generate RSA keys", "err", err)
+			os.Exit(1)
 		}
 
 		_, err = w.Write([]byte(jwks))
 		if err != nil {
-			log.Fatalf("Unable to generate RSA keys: %v", err)
+			slog.Error("Unable to generate RSA keys", "err", err)
+			os.Exit(1)
 		}
 	})
 
@@ -95,7 +97,8 @@ func createMockJwksServer() *httptest.Server {
 	claim = "bar"
 	privateKey, publicKey, err = GenerateRSAKeys()
 	if err != nil {
-		log.Fatalf("Unable to generate RSA keys: %v", err)
+		slog.Error("Unable to generate RSA keys", "err", err)
+		os.Exit(1)
 	}
 	testServer := setupMockJwksServer(publicKey, kid)
 	os.Setenv("JWKS_URI", fmt.Sprintf("%s/oauth/discovery/keys", testServer.URL))
@@ -144,7 +147,8 @@ func TestRollout(t *testing.T) {
 	// make sure the test file doesn't exist
 	err := RemoveFileIfExists(testFile)
 	if err != nil {
-		log.Fatalf("Unable to cleanup test file: %v", err)
+		slog.Error("Unable to cleanup test file", "err", err)
+		os.Exit(1)
 	}
 
 	s := createMockJwksServer()
@@ -298,7 +302,8 @@ func TestRollout(t *testing.T) {
 		// cleanup
 		err = RemoveFileIfExists(f)
 		if err != nil {
-			log.Fatalf("Unable to cleanup test file: %v", err)
+			slog.Error("Unable to cleanup test file", "file", f, "err", err)
+			os.Exit(1)
 		}
 	}
 }
