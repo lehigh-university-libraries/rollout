@@ -1,67 +1,67 @@
 {
-  "extends": [
-    "config:best-practices",
-    ":rebaseStalePrs",
-    "regexManagers:dockerfileVersions"
+  extends: [
+    'config:best-practices',
+    ':rebaseStalePrs',
+    'customManagers:dockerfileVersions',
   ],
-  "packageRules": [
+  packageRules: [
     {
-      "matchPackagePatterns": [
-        "*"
+      matchUpdateTypes: [
+        'minor',
+        'patch',
+        'digest',
       ],
-      "matchUpdateTypes": [
-        "minor",
-        "patch",
-        "digest"
+      groupName: 'all non-major dependencies',
+      schedule: [
+        'after 10pm on Friday',
       ],
-      "groupName": "all non-major dependencies",
-      "schedule": [
-        "after 10pm on Friday"
-      ]
+      matchPackageNames: [
+        '*',
+      ],
     },
     {
-      "matchManagers": [
-        "gomod"
+      matchManagers: [
+        'gomod',
       ],
-      "postUpdateOptions": [
-        "gomodTidy"
+      postUpdateOptions: [
+        'gomodTidy',
       ],
-      "groupName": "gomod updates"
+      groupName: 'gomod updates',
     },
     {
-      "matchManagers": [
-        "dockerfile"
+      matchManagers: [
+        'dockerfile',
       ],
-      "groupName": "Dockerfile updates"
+      groupName: 'Dockerfile updates',
     },
     {
-      "matchManagers": [
-        "github-actions"
+      matchManagers: [
+        'github-actions',
       ],
-      "groupName": "GitHub Actions updates",
-      "schedule": [
-        "after 10pm on Friday"
-      ]
+      groupName: 'GitHub Actions updates',
+      schedule: [
+        'after 10pm on Friday',
+      ],
     },
     {
-      "matchPackagePatterns": [
-        "*"
+      matchUpdateTypes: [
+        'major',
       ],
-      "matchUpdateTypes": [
-        "major"
+      groupName: 'all major updates',
+      schedule: [
+        'after 10pm on the first day of the month',
       ],
-      "groupName": "all major updates",
-      "schedule": [
-        "after 10pm on the first day of the month"
-      ]
-    }
+      matchPackageNames: [
+        '*',
+      ],
+    },
   ],
-  "labels": [
-    "dependencies"
+  labels: [
+    'dependencies',
   ],
-  "osvVulnerabilityAlerts": true,
-  "dependencyDashboardOSVVulnerabilitySummary": "unresolved",
-  "vulnerabilityAlerts": {
-    "enabled": true
-  }
+  osvVulnerabilityAlerts: true,
+  dependencyDashboardOSVVulnerabilitySummary: 'unresolved',
+  vulnerabilityAlerts: {
+    enabled: true,
+  },
 }
