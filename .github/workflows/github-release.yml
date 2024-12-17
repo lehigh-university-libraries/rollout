@@ -28,4 +28,3 @@ jobs:
           gh workflow run goreleaser.yml --ref $TAG
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
