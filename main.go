@@ -192,7 +192,7 @@ func getRolloutCmdArgs() []string {
 	}
 	rolloutArgs, err := shlex.Split(args)
 	if err != nil {
-		slog.Error("Error parsing ROLLOUT_ARGS", args, "err", err)
+		slog.Error("Error parsing ROLLOUT_ARGS", "args", args, "err", err)
 		os.Exit(1)
 	}
 
