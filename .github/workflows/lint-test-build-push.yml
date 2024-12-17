@@ -1,9 +1,7 @@
 name: lint-test
 on:
   push:
-  schedule:
-    # Mondays 7:15 EST
-    - cron: '15 11 * * 1'
+
 permissions:
   contents: read
 
@@ -14,6 +12,8 @@ jobs:
       - uses: actions/checkout@v4
 
       - uses: actions/setup-go@v5
+
+      - uses: hadolint/hadolint-action@v3.1.0
 
       - name: golangci-lint
         uses: golangci/golangci-lint-action@v6
