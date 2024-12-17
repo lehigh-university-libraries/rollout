@@ -37,7 +37,10 @@ jobs:
 
     - name: Extract branch name
       shell: bash
-      run: echo "branch=${GITHUB_REF#refs/heads/}"  >> $GITHUB_OUTPUT
+      shell: bash
+      run: |-
+        BRANCH=$(echo "${GITHUB_REF#refs/heads/}" | sed 's/[^a-zA-Z0-9._-]//g' | awk '{print substr($0, length($0)-120)}')
+        echo "branch=$BRANCH" >> $GITHUB_OUTPUT
       id: extract_branch
 
     - name: Extract tag name
