@@ -1,9 +1,7 @@
 name: lint-test
 on:
   push:
-  schedule:
-    # Mondays 7:15 EST
-    - cron: '15 11 * * 1'
+
 permissions:
   contents: read
 
