@@ -2,7 +2,7 @@ FROM golang:1.22-bookworm
 
 WORKDIR /app
 
-SHELL ["/bin/ash", "-o", "pipefail", "-c"]
+SHELL ["/bin/bash", "-o", "pipefail", "-c"]
 
 # hadolint ignore=SC1091
 RUN apt-get update && \
