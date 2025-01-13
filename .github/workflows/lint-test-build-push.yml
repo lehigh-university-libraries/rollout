@@ -37,18 +37,10 @@ jobs:
 
     - name: Extract branch name
       shell: bash
-      shell: bash
       run: |-
         BRANCH=$(echo "${GITHUB_REF#refs/heads/}" | sed 's/[^a-zA-Z0-9._-]//g' | awk '{print substr($0, length($0)-120)}')
         echo "branch=$BRANCH" >> $GITHUB_OUTPUT
       id: extract_branch
-
-    - name: Extract tag name
-      shell: bash
-      run: |-
-        t=$(echo ${GITHUB_SHA} | cut -c1-7)
-        echo "tag=$t" >> $GITHUB_OUTPUT
-      id: extract_tag
 
     - id: 'auth'
       name: 'Authenticate to Google Cloud'
@@ -72,5 +64,4 @@ jobs:
         context: .
         push: true
         tags: |
-          us-docker.pkg.dev/${{ secrets.GCLOUD_PROJECT }}/internal/rollout:${{steps.extract_branch.outputs.branch}}-${{steps.extract_tag.outputs.tag}}
           us-docker.pkg.dev/${{ secrets.GCLOUD_PROJECT }}/internal/rollout:${{steps.extract_branch.outputs.branch}}
