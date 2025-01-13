@@ -42,6 +42,10 @@ func main() {
 		os.Exit(1)
 	}
 
+	http.HandleFunc("/healthcheck", func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+		fmt.Fprintln(w, "OK")
+	})
 	http.HandleFunc("/", Rollout)
 	slog.Info("Server is running on :8080")
 	err := http.ListenAndServe(":8080", nil)
