@@ -298,18 +298,23 @@ func rollout() error {
 	cmd.Stderr = &stdErr
 	cmd.Env = os.Environ()
 	if err := cmd.Run(); err != nil {
+		cleanupLock()
 		return fmt.Errorf("command: %s had stdout:%s stderr:%s", cmd.String(), stdOut.String(), stdErr.String())
 	}
 
+	cleanupLock()
+
+	return nil
+}
+
+func cleanupLock() {
 	rolloutLockFile := os.Getenv("ROLLOUT_LOCK_FILE")
 	if rolloutLockFile == "" {
-		return nil
+		return
 	}
 
 	err := os.Remove(rolloutLockFile)
 	if err != nil {
-		return fmt.Errorf("failed to remove rollout lock file: %v", err)
+		slog.Error("failed to remove rollout lock file", "err", err)
 	}
-
-	return nil
 }
