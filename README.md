@@ -44,6 +44,7 @@ This service requires two environment variables.
 ```
 - `ROLLOUT_CMD` (default: `/bin/bash`) - the command to execute a rollout
 - `ROLLOUT_ARGS` (default: `/rollout.sh` ) - the args to pass to `ROLLOUT_CMD`
+- `ROLLOUT_LOCK_FILE` (optional) - a lock file that is set during rollouts. When the file is on disk additional rollouts can not happen, and if the file is present on startup initiates a rollout
 
 ## Dynamic environment variables for ROLLOUT_CMD
 

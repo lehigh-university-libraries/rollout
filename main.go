@@ -12,7 +12,7 @@ import (
 	"reflect"
 	"regexp"
 
-	"github.com/golang-jwt/jwt/v5"
+	jwt "github.com/golang-jwt/jwt/v5"
 	"github.com/google/shlex"
 	"github.com/lestrrat-go/jwx/jwk"
 )
@@ -33,6 +33,8 @@ func init() {
 }
 
 func main() {
+	var err error
+	rolloutLockFile := os.Getenv("ROLLOUT_LOCK_FILE")
 	if os.Getenv("JWKS_URI") == "" {
 		slog.Error("JWKS_URI is required. e.g. JWKS_URI=https://gitlab.com/oauth/discovery/keys")
 		os.Exit(1)
@@ -42,13 +44,23 @@ func main() {
 		os.Exit(1)
 	}
 
+	if lockExists(rolloutLockFile, false) {
+		slog.Info("Rollout triggered on startup.")
+		err = rollout()
+		if err != nil {
+			slog.Error("Error running rollout", "err", err)
+			os.Exit(1)
+		}
+
+	}
+
 	http.HandleFunc("/healthcheck", func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
 		fmt.Fprintln(w, "OK")
 	})
 	http.HandleFunc("/", Rollout)
 	slog.Info("Server is running on :8080")
-	err := http.ListenAndServe(":8080", nil)
+	err = http.ListenAndServe(":8080", nil)
 	if err != nil {
 		slog.Error("Unable to start service")
 		os.Exit(1)
@@ -66,8 +78,6 @@ func Rollout(w http.ResponseWriter, r *http.Request) {
 	}
 	// Assuming "Bearer " prefix
 	tokenString := a[7:]
-
-	// Parse and verify the token
 	token, err := jwt.Parse(tokenString, ParseToken)
 	if err != nil {
 		slog.Info("Failed to verify token for", "forwarded-ip", realIp, "lasthop-ip", lastIP, "err", err.Error())
@@ -111,23 +121,21 @@ func Rollout(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	name := os.Getenv("ROLLOUT_CMD")
-	if name == "" {
-		name = "/bin/bash"
-	}
-	cmd := exec.Command(name, getRolloutCmdArgs()...)
-
-	var stdOut, stdErr bytes.Buffer
-	cmd.Stdout = &stdOut
-	cmd.Stderr = &stdErr
-	cmd.Env = os.Environ()
-	if err := cmd.Run(); err != nil {
-		slog.Error("Error running", "command", cmd.String(), "stdout", stdOut.String(), "stderr", stdErr.String())
-		http.Error(w, "Script execution failed", http.StatusInternalServerError)
+	rolloutLockFile := os.Getenv("ROLLOUT_LOCK_FILE")
+	if rolloutLockFile != "" && lockExists(rolloutLockFile, true) {
+		slog.Error("Lock file exists. Not rolling out")
+		http.Error(w, "Internal error", http.StatusInternalServerError)
 		return
 	}
 
-	slog.Info("Rollout complete for", "forwarded-ip", realIp, "lasthop-ip", lastIP)
+	err = rollout()
+	if err != nil {
+		slog.Error("Error running", "err", err)
+		http.Error(w, "Script execution failed", http.StatusInternalServerError)
+		return
+	}
+	slog.Info("Rollout complete for", "forwarded-ip", r.Header.Get("X-Forwarded-For"), "lasthop-ip", r.RemoteAddr)
+
 	fmt.Fprintln(w, "Rollout complete")
 }
 
@@ -251,5 +259,57 @@ func setEnvFromStruct(data interface{}) error {
 			}
 		}
 	}
+	return nil
+}
+
+func lockExists(filePath string, createOnNotExists bool) bool {
+	if filePath == "" {
+		return false
+	}
+
+	_, err := os.ReadFile(filePath)
+	if err != nil {
+		if os.IsNotExist(err) {
+			if !createOnNotExists {
+				return false
+			}
+			err := os.WriteFile(filePath, []byte("rollout"), 0644)
+			if err != nil {
+				slog.Error("Failed to create rollout lock file", "error", err)
+			}
+			return false
+		}
+		slog.Error("Error reading rollout lock file", "error", err)
+		return false
+	}
+
+	return true
+}
+
+func rollout() error {
+	name := os.Getenv("ROLLOUT_CMD")
+	if name == "" {
+		name = "/bin/bash"
+	}
+	cmd := exec.Command(name, getRolloutCmdArgs()...)
+
+	var stdOut, stdErr bytes.Buffer
+	cmd.Stdout = &stdOut
+	cmd.Stderr = &stdErr
+	cmd.Env = os.Environ()
+	if err := cmd.Run(); err != nil {
+		return fmt.Errorf("command: %s had stdout:%s stderr:%s", cmd.String(), stdOut.String(), stdErr.String())
+	}
+
+	rolloutLockFile := os.Getenv("ROLLOUT_LOCK_FILE")
+	if rolloutLockFile == "" {
+		return nil
+	}
+
+	err := os.Remove(rolloutLockFile)
+	if err != nil {
+		return fmt.Errorf("failed to remove rollout lock file: %v", err)
+	}
+
 	return nil
 }
