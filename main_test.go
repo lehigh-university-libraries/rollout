@@ -16,7 +16,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/golang-jwt/jwt/v5"
+	jwt "github.com/golang-jwt/jwt/v5"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -479,4 +479,109 @@ func RemoveFileIfExists(filePath string) error {
 	}
 
 	return nil
+}
+
+func TestLockFile(t *testing.T) {
+	lockFile := "/tmp/rollout.lock"
+	testFile := "/tmp/rollout-test.txt"
+
+	// have our test rollout cmd just touch a file
+	os.Setenv("ROLLOUT_CMD", "touch")
+	os.Setenv("ROLLOUT_ARGS", testFile)
+	os.Setenv("ROLLOUT_LOCK_FILE", lockFile)
+
+	// make sure the test and lock file doesn't exist
+	err := RemoveFileIfExists(testFile)
+	if err != nil {
+		slog.Error("Unable to cleanup test file", "err", err)
+		os.Exit(1)
+	}
+	err = RemoveFileIfExists(lockFile)
+	if err != nil {
+		slog.Error("Unable to cleanup lock file", "err", err)
+		os.Exit(1)
+	}
+
+	// create the lock file
+	lockExists(lockFile, true)
+	s := createMockJwksServer()
+	defer s.Close()
+
+	// get a valid token
+	exp := time.Now().Add(time.Hour * 1).Unix()
+	jwtToken, err := CreateSignedJWT(kid, aud, claim, exp, privateKey)
+	if err != nil {
+		t.Fatalf("Unable to create a JWT with our test key: %v", err)
+	}
+
+	tests := []Test{
+		{
+			name:           "Do not roll out when locked",
+			authHeader:     "Bearer " + jwtToken,
+			expectedStatus: http.StatusInternalServerError,
+			expectedBody:   "Internal error\n",
+		},
+		{
+			name:           "Rollout OK when not locked",
+			authHeader:     "Bearer " + jwtToken,
+			expectedStatus: http.StatusOK,
+			expectedBody:   "Rollout complete\n",
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			recorder := httptest.NewRecorder()
+			request := createRequest(tt.authHeader, "GET", nil)
+			if tt.name == "No custom claim" {
+				os.Setenv("CUSTOM_CLAIMS", "")
+			} else {
+				os.Setenv("CUSTOM_CLAIMS", `{"foo": "bar"}`)
+			}
+			if tt.cmdArgs != "" {
+				os.Setenv("ROLLOUT_ARGS", tt.cmdArgs)
+			}
+
+			Rollout(recorder, request)
+
+			assert.Equal(t, tt.expectedStatus, recorder.Code)
+			assert.Equal(t, tt.expectedBody, recorder.Body.String())
+
+			// on the first test, remove the lock file
+			// so the second test should pass OK
+			if tt.name == "Do not roll out when locked" {
+				// remove the file
+				err = RemoveFileIfExists(lockFile)
+				if err != nil {
+					slog.Error("Unable to cleanup lock file", "err", err)
+					os.Exit(1)
+				}
+			}
+		})
+	}
+
+	// make sure the lock file was removed
+	_, err = os.Stat(lockFile)
+	if err == nil {
+		t.Errorf("The successful test did not cleanup the lock file %s", lockFile)
+	}
+
+	// make sure the rollout command actually ran the command
+	// which creates the file
+	_, err = os.Stat(testFile)
+	if err != nil && os.IsNotExist(err) {
+		t.Errorf("The successful test did not create the expected file %s", testFile)
+	}
+
+	testFiles := []string{
+		testFile,
+		lockFile,
+	}
+	for _, f := range testFiles {
+		// cleanup
+		err = RemoveFileIfExists(f)
+		if err != nil {
+			slog.Error("Unable to cleanup test file", "file", f, "err", err)
+			os.Exit(1)
+		}
+	}
 }
