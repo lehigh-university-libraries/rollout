@@ -1,4 +1,6 @@
 # rollout
+[![integration-test](https://github.com/lehigh-university-libraries/rollout/actions/workflows/github-integration-test.yml/badge.svg)](https://github.com/lehigh-university-libraries/rollout/actions/workflows/github-integration-test.yml)
+[![Go Report Card](https://goreportcard.com/badge/github.com/lehigh-university-libraries/rollout)](https://goreportcard.com/report/github.com/lehigh-university-libraries/rollout)
 
 Deploy your application from a CI/CD pipeline via `cURL` + JWT auth.
 
