@@ -17,6 +17,8 @@ import (
 	"time"
 
 	jwt "github.com/golang-jwt/jwt/v5"
+	"github.com/gorilla/mux"
+	"github.com/lehigh-university-libraries/rollout/lib/handler"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -212,44 +214,44 @@ func TestRolloutAuth(t *testing.T) {
 		{
 			name:           "No Authorization Header",
 			authHeader:     "",
-			expectedStatus: http.StatusUnauthorized,
-			expectedBody:   "need authorizaton: bearer xyz header\n",
+			expectedStatus: http.StatusBadRequest,
+			expectedBody:   "Missing Authorization header\n",
 		},
 		{
 			name:           "Invalid Token",
 			authHeader:     "Bearer invalidtoken",
 			expectedStatus: http.StatusUnauthorized,
-			expectedBody:   "Failed to verify token.\n",
+			expectedBody:   "Unauthorized\n",
 		},
 		{
 			name:           "Bad kid Token",
 			authHeader:     "Bearer " + badKidJwtToken,
 			expectedStatus: http.StatusUnauthorized,
-			expectedBody:   "Failed to verify token.\n",
+			expectedBody:   "Unauthorized\n",
 		},
 		{
 			name:           "Signed from wrong JWKS Token",
 			authHeader:     "Bearer " + badPrivKeyjwtToken,
 			expectedStatus: http.StatusUnauthorized,
-			expectedBody:   "Failed to verify token.\n",
+			expectedBody:   "Unauthorized\n",
 		},
 		{
 			name:           "Expired Token",
 			authHeader:     "Bearer " + expiredJwtToken,
 			expectedStatus: http.StatusUnauthorized,
-			expectedBody:   "Failed to verify token.\n",
+			expectedBody:   "Unauthorized\n",
 		},
 		{
 			name:           "Bad aud Token",
 			authHeader:     "Bearer " + badAudJwtToken,
 			expectedStatus: http.StatusUnauthorized,
-			expectedBody:   "Failed to verify token.\n",
+			expectedBody:   "Unauthorized\n",
 		},
 		{
 			name:           "Bad custom claim",
 			authHeader:     "Bearer " + badClaimJwtToken,
 			expectedStatus: http.StatusUnauthorized,
-			expectedBody:   "Invalid token\n",
+			expectedBody:   "Unauthorized\n",
 		},
 		{
 			name:           "No custom claim",
@@ -271,6 +273,8 @@ func TestRolloutAuth(t *testing.T) {
 			expectedBody:   "Rollout complete\n",
 		},
 	}
+	router := setupRouter()
+
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			recorder := httptest.NewRecorder()
@@ -284,7 +288,7 @@ func TestRolloutAuth(t *testing.T) {
 				os.Setenv("ROLLOUT_ARGS", tt.cmdArgs)
 			}
 
-			Rollout(recorder, request)
+			router.ServeHTTP(recorder, request)
 
 			assert.Equal(t, tt.expectedStatus, recorder.Code)
 			assert.Equal(t, tt.expectedBody, recorder.Body.String())
@@ -333,6 +337,8 @@ func TestRolloutCmdArgs(t *testing.T) {
 		"rollout-arg2": "rollout-arg2-test",
 		"rollout-arg3": "rollout-arg3-test",
 	}
+	router := setupRouter()
+
 	for k, v := range payloads {
 		var e string
 		switch k {
@@ -367,7 +373,7 @@ func TestRolloutCmdArgs(t *testing.T) {
 			request := createRequest(tt.authHeader, method, body)
 			os.Setenv("ROLLOUT_ARGS", tt.cmdArgs)
 
-			Rollout(recorder, request)
+			router.ServeHTTP(recorder, request)
 
 			assert.Equal(t, tt.expectedStatus, recorder.Code)
 			assert.Equal(t, tt.expectedBody, recorder.Body.String())
@@ -424,6 +430,8 @@ func TestBadRolloutCmdArgs(t *testing.T) {
 		`{"rollout-arg1": "anything!"}`,
 		"{\"rollout-arg1\": \"any`thing\"}",
 	}
+	router := setupRouter()
+
 	for _, payload := range payloads {
 		tt := Test{
 			name:           "Bad custom arg doesn't pass to rollout.sh",
@@ -441,7 +449,7 @@ func TestBadRolloutCmdArgs(t *testing.T) {
 			request := createRequest(tt.authHeader, method, body)
 			os.Setenv("ROLLOUT_ARGS", tt.cmdArgs)
 
-			Rollout(recorder, request)
+			router.ServeHTTP(recorder, request)
 
 			assert.Equal(t, tt.expectedStatus, recorder.Code)
 			assert.Equal(t, tt.expectedBody, recorder.Body.String())
@@ -503,7 +511,7 @@ func TestLockFile(t *testing.T) {
 	}
 
 	// create the lock file
-	lockExists(lockFile, true)
+	handler.LockExists(lockFile, true)
 	s := createMockJwksServer()
 	defer s.Close()
 
@@ -528,6 +536,8 @@ func TestLockFile(t *testing.T) {
 			expectedBody:   "Rollout complete\n",
 		},
 	}
+	router := setupRouter()
+
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			recorder := httptest.NewRecorder()
@@ -541,7 +551,7 @@ func TestLockFile(t *testing.T) {
 				os.Setenv("ROLLOUT_ARGS", tt.cmdArgs)
 			}
 
-			Rollout(recorder, request)
+			router.ServeHTTP(recorder, request)
 
 			assert.Equal(t, tt.expectedStatus, recorder.Code)
 			assert.Equal(t, tt.expectedBody, recorder.Body.String())
@@ -584,4 +594,13 @@ func TestLockFile(t *testing.T) {
 			os.Exit(1)
 		}
 	}
+}
+
+// setupRouter initializes the router with middleware
+func setupRouter() http.Handler {
+	r := mux.NewRouter()
+	r.HandleFunc("/", handler.Rollout).Methods("GET", "POST")
+	r.Use(handler.LoggingMiddleware, handler.JWTAuthMiddleware)
+
+	return r
 }

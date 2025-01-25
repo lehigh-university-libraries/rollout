@@ -1,5 +1,7 @@
 FROM golang:1.23-bookworm@sha256:2e838582004fab0931693a3a84743ceccfbfeeafa8187e87291a1afea457ff7a
 
+ENV PORT=8080
+
 WORKDIR /app
 
 SHELL ["/bin/bash", "-o", "pipefail", "-c"]
@@ -31,5 +33,7 @@ COPY . ./
 RUN go mod download && \
    go build -o /app/rollout && \
    go clean -cache -modcache
+
+HEALTHCHECK CMD curl -s http://localhost:${PORT}/healthcheck | grep -q ok
 
 ENTRYPOINT [ "/app/rollout"]
