@@ -9,6 +9,9 @@ TOKEN=$(curl -s \
     -H "Authorization: bearer $ACTIONS_ID_TOKEN_REQUEST_TOKEN" \
     "$ACTIONS_ID_TOKEN_REQUEST_URL" | jq -er '.value')
 
+# add some buffer to avoid iat issues
+sleep 5
+
 echo "Triggering rollout via $ROLLOUT_URL"
 echo "${TOKEN}" | jq -rR 'split(".") | .[1] | @base64d | fromjson | .aud'
 
