@@ -1,0 +1,50 @@
+name: github-integration-test
+on:
+  push:
+
+permissions:
+  contents: read
+
+jobs:
+  rollout:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+    - uses: 'actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683' # v4
+
+    # if you're copying this into your repo
+    # you would just need the run step
+    # the build/start/cleanup are just used so we can run smoke tests in this repo
+    - name: build
+      uses: docker/build-push-action@ca877d9245402d1537745e0e356eab47c3520991 # v6
+      with:
+        context: .
+        tags: |
+          rollout:latest
+
+    - name: start
+      run: |
+        docker run \
+          -p 8080:8080 \
+          --rm \
+          --name=rollout \
+          -v ./examples/github/rollout.sh:/rollout.sh \
+          --env JWKS_URI="https://token.actions.githubusercontent.com/.well-known/jwks" \
+          --env JWT_AUD=https://github.com/lehigh-university-libraries \
+          rollout:latest
+
+    - name: run
+      env:
+        # TODO - replace with your rollout URL
+        # and not the docker service we're running here in GitHub Action
+        ROLLOUT_URL: http://localhost:8080/
+      run: ./examples/github/trigger-rollout.sh
+
+    - name: cleanup
+      if: ${{ always() }}
+      run: |
+        docker logs rollout
+        docker stop rollout

@@ -91,7 +91,5 @@ JWT_AUD=aud-string-you-set-in-your-job
 
 ## TODO
 
-- [ ] Add a full example for GitLab
-- [ ] Add a full example for GitHub
 - [ ] Install instructions using binary
 - [ ] Tag/push versions to dockerhub
