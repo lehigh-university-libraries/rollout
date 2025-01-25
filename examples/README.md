@@ -4,7 +4,7 @@ In this directory is [a docker-compose template](./docker-compose.yml) that woul
 
 ## GitHub
 
-In the [github](../.github/workflows/github-integration-test.yml) you will find a sample GitHub Action you could add to your GitHub repo to trigger deployments.
+In the [github](./github) directory you will find a sample GitHub Action script you could add to your GitHub repo to trigger deployments. You can see the script in action in [the GitHub Action integraton test that runs in this repo](../.github/workflows/github-integration-test.yml).
 
 ## GitLab
 
