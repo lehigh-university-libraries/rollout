@@ -34,6 +34,6 @@ RUN go mod download && \
    go build -o /app/rollout && \
    go clean -cache -modcache
 
-HEALTHCHECK CMD curl -s http://localhost:${PORT}/healthcheck | grep -q ok
+HEALTHCHECK CMD sh -c 'curl -s http://localhost:${PORT}/healthcheck | grep -q ok'
 
 ENTRYPOINT [ "/app/rollout"]
