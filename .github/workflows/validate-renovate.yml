@@ -3,12 +3,15 @@ name: validate renovate.json5
 on:
   pull_request:
 
+permissions:
+  contents: read
+
 env:
   LOG_LEVEL: debug
 
 jobs:
   renovate-config-validator:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 10
 
     steps:
