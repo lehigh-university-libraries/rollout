@@ -1,0 +1,68 @@
+workflow:
+  auto_cancel:
+    on_new_commit: interruptible
+
+stages:
+  - build-lint-test-push
+  - deploy
+
+build-lint-test-push:
+  interruptible: true
+  stage: build-lint-test
+  id_tokens:
+    ID_TOKEN_1:
+      aud: your-dev-server-claim
+  variables:
+    ROLLOUT_URL: https://dev.example.com/proxied/path/to/rollout
+  script:
+    - YOUR LINT/BUILD SCRIPT(s)
+    - ./trigger-rollout.sh # deploy to dev
+    - YOUR TEST SCRIPT(S)
+    - YOUR PUSH SCRIPT(s)
+  tags:
+    - your
+    - runner
+    - tags
+    - dev
+    - maybe they're all the same
+
+deploy_stage:
+  stage: deploy
+  dependencies:
+    - push
+  id_tokens:
+    ID_TOKEN_1:
+      aud: your-stage-server-claim
+  variables:
+    ROLLOUT_URL: https://stage.example.com/proxied/path/to/rollout
+  script:
+    - ./trigger-rollout.sh
+  rules:
+    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
+  tags:
+    - your
+    - runner
+    - tags
+    - stage
+    - maybe they're all the same
+
+deploy_prod:
+  stage: deploy
+  dependencies:
+    - deploy_stage
+  id_tokens:
+    ID_TOKEN_1:
+      aud: your-prod-server-claim
+  variables:
+    ROLLOUT_URL: https://prod.example.com/proxied/path/to/rollout
+  script:
+    - ./trigger-rollout.sh
+  when: manual
+  rules:
+    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
+  tags:
+    - your
+    - runner
+    - tags
+    - prod
+    - maybe they're all the same

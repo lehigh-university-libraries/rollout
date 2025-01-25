@@ -1,0 +1,56 @@
+---
+networks:
+    default:
+services:
+    # use traefik as a reverse proxy for rollout
+    # swap it with your favorite (i.e. haproxy/nginx/etc)
+    traefik:
+        command: >-
+            --api.insecure=true
+            --api.dashboard=true
+            --api.debug=true
+            --ping=true
+            --entryPoints.http.address=:80
+            --entryPoints.https.address=:443
+            --entryPoints.http.forwardedHeaders.trustedIPs=${FRONTEND_IP_1},${FRONTEND_IP_2},${FRONTEND_IP_3}
+            --entryPoints.https.forwardedHeaders.trustedIPs=${FRONTEND_IP_1},${FRONTEND_IP_2},${FRONTEND_IP_3}
+            --entryPoints.https.transport.respondingTimeouts.readTimeout=3600
+            --providers.file.filename=/etc/traefik/tls.yml
+            --providers.docker=true
+            --providers.docker.network=default
+            --providers.docker.exposedByDefault=false
+        labels:
+            traefik.enable: false
+        volumes:
+          - ./certs:/etc/ssl/traefik:Z,ro
+          - ./tls.yml:/etc/traefik/tls.yml:Z,ro
+          - /var/run/docker.sock:/var/run/docker.sock:z
+        healthcheck:
+            test: traefik healthcheck --ping
+    rollout:
+        image: lehighlts/rollout:main
+        labels:
+            traefik.enable: true
+            traefik.http.routers.rollout.entrypoints: https
+            traefik.http.routers.rollout.rule: PathPrefix(`/path/to/rollout`)
+            traefik.http.routers.rollout.tls.certresolver: *traefik-certresolver
+            traefik.http.routers.rollout.tls: true
+            traefik.http.services.rollout.loadbalancer.server.port: 8080
+            traefik.http.routers.rollout.middlewares: rollout-ip
+            # add all your trusted domains
+            traefik.http.middlewares.rollout-ip.ipwhitelist.sourcerange: 172.16.0.0/12, 192.168.0.0/16, 127.0.0.1/32
+            # would increment to 1 if traefik (which is proxying this service)
+            # was also behind a reverse proxy
+            traefik.http.middlewares.rollout-ip.ipwhitelist.ipstrategy.depth: 0
+        volumes:
+          - /optionally/your/code/base:/code
+          - /optionally/other/files/to/help/with/git/docker/etc/auth:/some/other/path
+          - ./rollout.sh:/rollout.sh
+          # if you need to run docker commands in rollout.sh
+          - /var/run/docker.sock:/var/run/docker.sock
+        environment:
+            JWKS_URI: ${JWKS_URI}
+            JWT_AUD: $HOST
+            CUSTOM_CLAIMS: ${CUSTOM_CLAIMS}
+            GIT_BRANCH: ${GIT_BRANCH}
+            ROLLOUT_LOCK_FILE: /tmp/rollout.lock
