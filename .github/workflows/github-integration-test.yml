@@ -37,6 +37,16 @@ jobs:
           --env JWT_AUD=https://github.com/lehigh-university-libraries \
           rollout:latest
 
+        for i in {1..5}; do
+          if curl -s http://localhost:8080/healthcheck | grep "ok"; then
+            echo "container ready"
+            exit 0
+          fi
+          echo "Waiting for container to be ready..."
+          sleep 2
+        done
+        echo "🚨 Container did not start in time" && exit 1
+
     - name: run
       env:
         # TODO - replace with your rollout URL

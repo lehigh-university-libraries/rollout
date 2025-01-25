@@ -12,7 +12,7 @@ TOKEN=$(curl -s \
 echo "Triggering rollout via $ROLLOUT_URL"
 echo "${TOKEN}" | jq -rR 'split(".") | .[1] | @base64d | fromjson | .aud'
 
-for i in $(seq 1 3); do
+for i in {1..3}; do
   STATUS=$(curl -s \
     --max-time 900 \
     -w '%{http_code}' \

@@ -5,7 +5,7 @@ set -eou pipefail
 echo "Triggering rollout via $ROLLOUT_URL"
 echo "${ID_TOKEN_1}" | jq -rR 'split(".") | .[1] | @base64d | fromjson | .project_path + " " + .user_email + " " + .aud'
 
-for i in $(seq 1 3); do
+for i in {1..3}; do
   STATUS=$(curl -s \
     --max-time 900 \
     -w '%{http_code}' \
