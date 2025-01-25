@@ -140,18 +140,18 @@ func rollout() error {
 	cmd.Stderr = &stdErr
 	cmd.Env = os.Environ()
 	if err := cmd.Run(); err != nil {
-		cleanupLock()
+		CleanupLock()
 		return fmt.Errorf("command: %s had stdout:%s stderr:%s", cmd.String(), stdOut.String(), stdErr.String())
 	}
 
-	cleanupLock()
+	CleanupLock()
 
 	return nil
 }
 
-func cleanupLock() {
+func CleanupLock() {
 	rolloutLockFile := os.Getenv("ROLLOUT_LOCK_FILE")
-	if rolloutLockFile == "" {
+	if !LockExists(rolloutLockFile, false) {
 		return
 	}
 

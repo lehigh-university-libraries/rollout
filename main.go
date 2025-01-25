@@ -24,6 +24,8 @@ func main() {
 		os.Exit(1)
 	}
 
+	handler.CleanupLock()
+
 	// create a healthcheck with no middleware/auth
 	r := mux.NewRouter()
 	r.HandleFunc("/healthcheck", handler.HealthCheck).Methods("GET")
