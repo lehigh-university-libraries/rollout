@@ -39,7 +39,7 @@
         '^Dockerfile$',
       ],
       matchStrings: [
-        '[ ]+# *renovate: *datasource=(?<datasource>.*?) depName=(?<depName>.*?)( versioning=(?<versioning>.*?))?\\sARG .*?_VERSION="(?<currentValue>.*)"\\s',
+        '[ ]+# *renovate: *datasource=(?<datasource>.*?) depName=(?<depName>.*?)( versioning=(?<versioning>.*?))?\\s .*?_VERSION="(?<currentValue>.*)"\\s',
       ],
       versioningTemplate: '{{#if versioning}}{{{versioning}}}{{else}}semver{{/if}}',
     },
