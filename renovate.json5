@@ -32,6 +32,18 @@
       ],
     },
   ],
+  customManagers: [
+    {
+      customType: 'regex',
+      fileMatch: [
+        '^Dockerfile$',
+      ],
+      matchStrings: [
+        '[ ]+# *renovate: *datasource=(?<datasource>.*?) depName=(?<depName>.*?)( versioning=(?<versioning>.*?))?\\sARG .*?_VERSION="(?<currentValue>.*)"\\s',
+      ],
+      versioningTemplate: '{{#if versioning}}{{{versioning}}}{{else}}semver{{/if}}',
+    },
+  ],
   labels: [
     'dependencies',
   ],
