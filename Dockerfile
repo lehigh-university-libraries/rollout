@@ -15,15 +15,15 @@ ARG \
   JQ_VERSION="1.6-2.1" \
   # renovate: datasource=repology depName=debian_12/git
   GIT_VERSION="1:2.39.5-0+deb12u1" \
-  # renovate: datasource=repology depName=debian_12/docker-ce
+  ## renovate: datasource=repology depName=debian_12/docker-ce
   DOCKER_VERSION="5:27.4.0-1~debian.12~bookworm" \
-  # renovate: datasource=repology depName=debian_12/docker-ce-cli
+  ## renovate: datasource=repology depName=debian_12/docker-ce-cli
   DOCKER_CLI_VERSION="5:27.4.0-1~debian.12~bookworm" \
-  # renovate: datasource=repology depName=debian_12/containerd.io
+  ## renovate: datasource=repology depName=debian_12/containerd.io
   CONTAINERD_VERSION="1.7.24-1" \
-  # renovate: datasource=repology depName=debian_12/docker-buildx-plugin
+  ## renovate: datasource=repology depName=debian_12/docker-buildx-plugin
   DOCKER_BUILDX_VERSION="0.19.2-1~debian.12~bookworm" \
-  # renovate: datasource=repology depName=debian_12/docker-compose-plugin
+  ## renovate: datasource=repology depName=debian_12/docker-compose-plugin
   DOCKER_COMPOSE_VERSION="2.31.0-1~debian.12~bookworm"
 
 # hadolint ignore=SC1091
