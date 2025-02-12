@@ -1,4 +1,4 @@
-FROM golang:1.23-bookworm@sha256:3149bc5043fa58cf127fd8db1fdd4e533b6aed5a40d663d4f4ae43d20386665f
+FROM golang:1.23-bookworm@sha256:441f59f8a2104b99320e1f5aaf59a81baabbc36c81f4e792d5715ef09dd29355
 
 WORKDIR /app
 
@@ -14,7 +14,7 @@ ARG \
   # renovate: datasource=repology depName=debian_12/jq
   JQ_VERSION="1.6-2.1" \
   # renovate: datasource=repology depName=debian_12/git
-  GIT_VERSION="1:2.39.5-0+deb12u1" \
+  GIT_VERSION="1:2.39.5-0+deb12u2" \
   ## renovate: datasource=repology depName=debian_12/docker-ce
   DOCKER_VERSION="5:27.4.0-1~debian.12~bookworm" \
   ## renovate: datasource=repology depName=debian_12/docker-ce-cli
