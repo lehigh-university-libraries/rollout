@@ -19,7 +19,7 @@ jobs:
     # you would just need the run step
     # the build/start/cleanup are just used so we can run smoke tests in this repo
     - name: build
-      uses: docker/build-push-action@ca877d9245402d1537745e0e356eab47c3520991 # v6
+      uses: docker/build-push-action@0adf9959216b96bec444f325f1e493d4aa344497 # v6
       with:
         context: .
         tags: |
