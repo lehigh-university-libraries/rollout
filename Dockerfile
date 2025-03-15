@@ -1,4 +1,4 @@
-FROM golang:1.24-bookworm@sha256:6260304a09fb81a1983db97c9e6bfc1779ebce33d39581979a511b3c7991f076
+FROM golang:1.24-bookworm@sha256:d7d795d0a9f51b00d9c9bfd17388c2c626004a50c6ed7c581e095122507fe1ab
 
 WORKDIR /app
 
@@ -8,7 +8,7 @@ ARG \
   # renovate: datasource=repology depName=debian_12/ca-certificates
   CA_CERTIFICATES_VERSION="20230311" \
   # renovate: datasource=repology depName=debian_12/curl
-  CURL_VERSION="7.88.1-10+deb12u8" \
+  CURL_VERSION="7.88.1-10+deb12u12" \
   # renovate: datasource=repology depName=debian_12/sudo
   SUDO_VERSION="1.9.13p3-1+deb12u1" \
   # renovate: datasource=repology depName=debian_12/jq
