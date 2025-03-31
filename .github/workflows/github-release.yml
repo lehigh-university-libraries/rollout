@@ -7,7 +7,7 @@ on:
       - closed
 jobs:
   release:
-    if: github.event.pull_request.merged == true && !contains(github.event.pull_request.title, '[skip-release]')
+    if: github.event.pull_request.merged == true && !contains(github.event.pull_request.title, 'skip-release')
     uses: lehigh-university-libraries/gha/.github/workflows/bump-release.yaml@main
     permissions:
       contents: write
