@@ -16,9 +16,11 @@ import (
 	"testing"
 	"time"
 
-	jwt "github.com/golang-jwt/jwt/v5"
 	"github.com/gorilla/mux"
 	"github.com/lehigh-university-libraries/rollout/lib/handler"
+	"github.com/lestrrat-go/jwx/v3/jwa"
+	"github.com/lestrrat-go/jwx/v3/jws"
+	"github.com/lestrrat-go/jwx/v3/jwt"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -119,28 +121,32 @@ func createMockJwksServer() *httptest.Server {
 	return testServer
 }
 
-func CreateSignedJWT(kid, aud, claim string, exp int64, privateKey *rsa.PrivateKey) (string, error) {
-	// Define the claims of the token. You can add more claims based on your needs.
-	claims := jwt.MapClaims{
-		"sub": "1234567890",
-		"aud": aud,
-		"iat": time.Now().Unix(),
-		"exp": exp,
-		"foo": claim,
+func CreateSignedJWT(kid, aud, claim string, exp time.Time, privateKey *rsa.PrivateKey) (string, error) {
+	// Create a new token object with the claims and the signing method
+	token, err := jwt.NewBuilder().
+		Subject("1234567890").
+		Audience([]string{aud}).
+		Claim("foo", claim).
+		IssuedAt(time.Now()).
+		Expiration(exp).
+		Build()
+	if err != nil {
+		return "", fmt.Errorf("failed to create token: %v", err)
 	}
 
-	// Create a new token object with the claims and the signing method
-	token := jwt.NewWithClaims(jwt.SigningMethodRS256, claims)
-
-	token.Header["kid"] = kid
-
-	// Sign the token with the private key
-	signedToken, err := token.SignedString(privateKey)
+	hdr := jws.NewHeaders()
+	err = hdr.Set(jws.KeyIDKey, kid)
+	if err != nil {
+		return "", fmt.Errorf("error setting kid header: %v", err)
+	}
+	signedToken, err := jwt.Sign(token,
+		jwt.WithKey(jwa.RS256(), privateKey, jws.WithProtectedHeaders(hdr)),
+	)
 	if err != nil {
 		return "", fmt.Errorf("failed to sign the token: %v", err)
 	}
 
-	return signedToken, nil
+	return string(signedToken), nil
 }
 
 // Utility function to create a request with an Authorization header
@@ -169,7 +175,7 @@ func TestRolloutAuth(t *testing.T) {
 	defer s.Close()
 
 	// get a valid token
-	exp := time.Now().Add(time.Hour * 1).Unix()
+	exp := time.Now().Add(time.Hour * 1)
 	jwtToken, err := CreateSignedJWT(kid, aud, claim, exp, privateKey)
 	if err != nil {
 		t.Fatalf("Unable to create a JWT with our test key: %v", err)
@@ -192,7 +198,7 @@ func TestRolloutAuth(t *testing.T) {
 	}
 
 	// make sure expired JWTs fail
-	expired := time.Now().Add(time.Hour * -1).Unix()
+	expired := time.Now().Add(time.Hour * -1)
 	expiredJwtToken, err := CreateSignedJWT(kid, aud, claim, expired, privateKey)
 	if err != nil {
 		t.Fatalf("Unable to create a JWT with our test key: %v", err)
@@ -322,7 +328,7 @@ func TestRolloutCmdArgs(t *testing.T) {
 	defer s.Close()
 
 	// get a valid token
-	exp := time.Now().Add(time.Hour * 1).Unix()
+	exp := time.Now().Add(time.Hour * 1)
 	jwtToken, err := CreateSignedJWT(kid, aud, claim, exp, privateKey)
 	if err != nil {
 		t.Fatalf("Unable to create a JWT with our test key: %v", err)
@@ -404,7 +410,7 @@ func TestBadRolloutCmdArgs(t *testing.T) {
 	defer s.Close()
 
 	// get a valid token
-	exp := time.Now().Add(time.Hour * 1).Unix()
+	exp := time.Now().Add(time.Hour * 1)
 	jwtToken, err := CreateSignedJWT(kid, aud, claim, exp, privateKey)
 	if err != nil {
 		t.Fatalf("Unable to create a JWT with our test key: %v", err)
@@ -516,7 +522,7 @@ func TestLockFile(t *testing.T) {
 	defer s.Close()
 
 	// get a valid token
-	exp := time.Now().Add(time.Hour * 1).Unix()
+	exp := time.Now().Add(time.Hour * 1)
 	jwtToken, err := CreateSignedJWT(kid, aud, claim, exp, privateKey)
 	if err != nil {
 		t.Fatalf("Unable to create a JWT with our test key: %v", err)
