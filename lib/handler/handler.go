@@ -143,8 +143,7 @@ func validateClaims(token jwt.Token) error {
 				return fmt.Errorf("invalid value for claim %s: %s", key, v)
 			}
 		case []string:
-			slices.Contains(v, expectedValue)
-			if !strInSlice(expectedValue, v) {
+			if !slices.Contains(v, expectedValue) {
 				return fmt.Errorf("invalid value for claim %s: %s", key, v)
 			}
 		default:
@@ -162,13 +161,4 @@ func fetchJWKS() (jwk.Set, error) {
 
 	jwksURI := os.Getenv("JWKS_URI")
 	return jwk.Fetch(ctx, jwksURI)
-}
-
-func strInSlice(e string, s []string) bool {
-	for _, a := range s {
-		if a == e {
-			return true
-		}
-	}
-	return false
 }
