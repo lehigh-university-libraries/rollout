@@ -7,11 +7,12 @@ import (
 	"log/slog"
 	"net/http"
 	"os"
+	"slices"
 	"strings"
 	"time"
 
-	"github.com/lestrrat-go/jwx/v2/jwk"
-	"github.com/lestrrat-go/jwx/v2/jwt"
+	"github.com/lestrrat-go/jwx/v3/jwk"
+	"github.com/lestrrat-go/jwx/v3/jwt"
 )
 
 type RolloutPayload struct {
@@ -126,11 +127,14 @@ func validateClaims(token jwt.Token) error {
 		}
 	}
 	expectedClaims["aud"] = os.Getenv("JWT_AUD")
+	slog.Info("EC", "ec", expectedClaims)
+	slog.Info("keys", "keys", token.Keys())
 
 	for key, expectedValue := range expectedClaims {
-		value, ok := token.Get(key)
-		if !ok {
-			return fmt.Errorf("missing claim: %s", key)
+		var value any
+		err := token.Get(key, &value)
+		if err != nil {
+			return fmt.Errorf("missing claim: %s: %v", key, err)
 		}
 
 		switch v := value.(type) {
@@ -139,6 +143,7 @@ func validateClaims(token jwt.Token) error {
 				return fmt.Errorf("invalid value for claim %s: %s", key, v)
 			}
 		case []string:
+			slices.Contains(v, expectedValue)
 			if !strInSlice(expectedValue, v) {
 				return fmt.Errorf("invalid value for claim %s: %s", key, v)
 			}
