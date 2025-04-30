@@ -41,8 +41,7 @@ func LoggingMiddleware(next http.Handler) http.Handler {
 		}
 		next.ServeHTTP(statusWriter, r)
 		duration := time.Since(start)
-		slog.Info("Incoming request",
-			"method", r.Method,
+		slog.Info(r.Method,
 			"path", r.URL.Path,
 			"status", statusWriter.statusCode,
 			"duration", duration,
@@ -127,9 +126,6 @@ func validateClaims(token jwt.Token) error {
 		}
 	}
 	expectedClaims["aud"] = os.Getenv("JWT_AUD")
-	slog.Info("EC", "ec", expectedClaims)
-	slog.Info("keys", "keys", token.Keys())
-
 	for key, expectedValue := range expectedClaims {
 		var value any
 		err := token.Get(key, &value)
