@@ -35,8 +35,8 @@
   customManagers: [
     {
       customType: 'regex',
-      fileMatch: [
-        '^Dockerfile$',
+      managerFilePatterns: [
+        '/^Dockerfile$/',
       ],
       matchStrings: [
         '[ ]+# *renovate: *datasource=(?<datasource>.*?) depName=(?<depName>.*?)( versioning=(?<versioning>.*?))?\\s .*?_VERSION="(?<currentValue>.*)"\\s',
