@@ -1,30 +1,30 @@
-FROM golang:1.25-bookworm@sha256:81dc45d05a7444ead8c92a389621fafabc8e40f8fd1a19d7e5df14e61e98bc1a
+FROM golang:1.25-trixie@sha256:a733d0a3a4c2349114bfaa61b2f41bfd611d5dc4a95d0d12c485ff385bd285b3
 
 WORKDIR /app
 
 SHELL ["/bin/bash", "-o", "pipefail", "-c"]
 
 ARG \
-  # renovate: datasource=repology depName=debian_12/ca-certificates
-  CA_CERTIFICATES_VERSION="20230311" \
-  # renovate: datasource=repology depName=debian_12/curl
-  CURL_VERSION="7.88.1-10+deb12u12" \
-  # renovate: datasource=repology depName=debian_12/sudo
-  SUDO_VERSION="1.9.13p3-1+deb12u1" \
-  # renovate: datasource=repology depName=debian_12/jq
-  JQ_VERSION="1.6-2.1" \
-  # renovate: datasource=repology depName=debian_12/git
-  GIT_VERSION="1:2.39.5-0+deb12u2" \
-  ## renovate: datasource=repology depName=debian_12/docker-ce
-  DOCKER_VERSION="5:27.4.0-1~debian.12~bookworm" \
-  ## renovate: datasource=repology depName=debian_12/docker-ce-cli
-  DOCKER_CLI_VERSION="5:27.4.0-1~debian.12~bookworm" \
-  ## renovate: datasource=repology depName=debian_12/containerd.io
-  CONTAINERD_VERSION="1.7.24-1" \
-  ## renovate: datasource=repology depName=debian_12/docker-buildx-plugin
-  DOCKER_BUILDX_VERSION="0.19.2-1~debian.12~bookworm" \
-  ## renovate: datasource=repology depName=debian_12/docker-compose-plugin
-  DOCKER_COMPOSE_VERSION="2.31.0-1~debian.12~bookworm"
+  # renovate: datasource=repology depName=debian_13/ca-certificates
+  CA_CERTIFICATES_VERSION="20250419" \
+  # renovate: datasource=repology depName=debian_13/curl
+  CURL_VERSION="8.14.1-2" \
+  # renovate: datasource=repology depName=debian_13/sudo
+  SUDO_VERSION="1.9.16p2-3" \
+  # renovate: datasource=repology depName=debian_13/jq
+  JQ_VERSION="1.7.1-6+deb13u1" \
+  # renovate: datasource=repology depName=debian_13/git
+  GIT_VERSION="1:2.47.2-0.2" \
+  # renovate: datasource=repology depName=debian_13/docker-ce
+  DOCKER_VERSION="5:28.3.3-1~debian.13~trixie" \
+  # renovate: datasource=repology depName=debian_13/docker-ce-cli
+  DOCKER_CLI_VERSION="5:28.3.3-1~debian.13~trixie" \
+  # renovate: datasource=repology depName=debian_13/containerd.io
+  CONTAINERD_VERSION="1.7.27-1" \
+  # renovate: datasource=repology depName=debian_13/docker-buildx-plugin
+  DOCKER_BUILDX_VERSION="0.26.1-1~debian.13~trixie" \
+  # renovate: datasource=repology depName=debian_13/docker-compose-plugin
+  DOCKER_COMPOSE_VERSION="2.39.1-1~debian.13~trixie"
 
 # hadolint ignore=SC1091
 RUN apt-get update && \
