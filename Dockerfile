@@ -15,6 +15,8 @@ ARG \
   JQ_VERSION="1.7.1-6+deb13u1" \
   # renovate: datasource=repology depName=debian_13/git
   GIT_VERSION="1:2.47.2-0.2" \
+  # renovate: datasource=repology depName=debian_13/yq
+  YQ_VERSION="3.4.3-2" \
   # renovate: datasource=repology depName=debian_13/docker-ce
   DOCKER_VERSION="5:28.3.3-1~debian.13~trixie" \
   # renovate: datasource=repology depName=debian_13/docker-ce-cli
@@ -32,6 +34,7 @@ RUN apt-get update && \
       curl="${CURL_VERSION}" \
       git="${GIT_VERSION}" \
       jq="${JQ_VERSION}" \
+      yq="${YQ_VERSION}" \
       sudo="${SUDO_VERSION}" \
       ca-certificates="${CA_CERTIFICATES_VERSION}" && \
     install -m 0755 -d /etc/apt/keyrings && \
