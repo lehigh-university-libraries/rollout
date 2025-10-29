@@ -1,4 +1,4 @@
-FROM golang:1.25-trixie@sha256:a733d0a3a4c2349114bfaa61b2f41bfd611d5dc4a95d0d12c485ff385bd285b3
+FROM golang:1.25-trixie@sha256:7534a6264850325fcce93e47b87a0e3fddd96b308440245e6ab1325fa8a44c91
 
 WORKDIR /app
 
