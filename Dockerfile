@@ -1,4 +1,4 @@
-FROM golang:1.25-trixie@sha256:a733d0a3a4c2349114bfaa61b2f41bfd611d5dc4a95d0d12c485ff385bd285b3
+FROM golang:1.25-trixie@sha256:0032c99f1682c40dca54932e2fe0156dc575ed12c6a4fdec94df9db7a0c17ab0
 
 WORKDIR /app
 
@@ -8,13 +8,13 @@ ARG \
   # renovate: datasource=repology depName=debian_13/ca-certificates
   CA_CERTIFICATES_VERSION="20250419" \
   # renovate: datasource=repology depName=debian_13/curl
-  CURL_VERSION="8.14.1-2" \
+  CURL_VERSION="8.14.1-2+deb13u2" \
   # renovate: datasource=repology depName=debian_13/sudo
   SUDO_VERSION="1.9.16p2-3" \
   # renovate: datasource=repology depName=debian_13/jq
   JQ_VERSION="1.7.1-6+deb13u1" \
   # renovate: datasource=repology depName=debian_13/git
-  GIT_VERSION="1:2.47.2-0.2" \
+  GIT_VERSION="1:2.47.3-0+deb13u1" \
   # renovate: datasource=repology depName=debian_13/yq
   YQ_VERSION="3.4.3-2" \
   # renovate: datasource=repology depName=debian_13/docker-ce
