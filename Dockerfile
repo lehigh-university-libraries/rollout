@@ -26,7 +26,7 @@ ARG \
   # renovate: datasource=repology depName=debian_13/docker-buildx-plugin
   DOCKER_BUILDX_VERSION="0.26.1-1~debian.13~trixie" \
   # renovate: datasource=repology depName=debian_13/docker-compose-plugin
-  DOCKER_COMPOSE_VERSION="2.39.1-1~debian.13~trixie"
+  DOCKER_COMPOSE_VERSION="5.0.2-1~debian.13~trixie"
 
 # hadolint ignore=SC1091
 RUN apt-get update && \
