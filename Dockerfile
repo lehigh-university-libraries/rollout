@@ -18,13 +18,13 @@ ARG \
   # renovate: datasource=repology depName=debian_13/yq
   YQ_VERSION="3.4.3-2" \
   # renovate: datasource=repology depName=debian_13/docker-ce
-  DOCKER_VERSION="5:28.3.3-1~debian.13~trixie" \
+  DOCKER_VERSION="5:29.2.1-1~debian.13~trixie" \
   # renovate: datasource=repology depName=debian_13/docker-ce-cli
-  DOCKER_CLI_VERSION="5:28.3.3-1~debian.13~trixie" \
+  DOCKER_CLI_VERSION="5:29.2.1-1~debian.13~trixie" \
   # renovate: datasource=repology depName=debian_13/containerd.io
-  CONTAINERD_VERSION="1.7.27-1" \
+  CONTAINERD_VERSION="2.2.1-1~debian.13~trixie" \
   # renovate: datasource=repology depName=debian_13/docker-buildx-plugin
-  DOCKER_BUILDX_VERSION="0.26.1-1~debian.13~trixie" \
+  DOCKER_BUILDX_VERSION="0.31.1-1~debian.13~trixie" \
   # renovate: datasource=repology depName=debian_13/docker-compose-plugin
   DOCKER_COMPOSE_VERSION="5.0.2-1~debian.13~trixie"
 
