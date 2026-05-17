@@ -10,11 +10,17 @@ import (
 	"os/exec"
 	"reflect"
 	"regexp"
+	"sync"
 
 	"github.com/google/shlex"
 )
 
+var rolloutMu sync.Mutex
+
 func Rollout(w http.ResponseWriter, r *http.Request) {
+	rolloutMu.Lock()
+	defer rolloutMu.Unlock()
+
 	err := setCustomArgs(r)
 	if err != nil {
 		slog.Error("Error setting custom args", "err", err)
@@ -91,6 +97,9 @@ func setEnvFromStruct(data interface{}) error {
 			// For now all fields are strings
 			value := v.Field(i).String()
 			if value == "" {
+				if err := os.Unsetenv(envTag); err != nil {
+					return fmt.Errorf("could not unset environment variable %s: %v", envTag, err)
+				}
 				continue
 			}
 			if !regex.MatchString(value) {

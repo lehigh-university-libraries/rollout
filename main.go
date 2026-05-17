@@ -42,7 +42,10 @@ func main() {
 	})
 	authRouter.NotFoundHandler = handler.LoggingMiddleware(notFoundHandler)
 
-	port := "8080"
+	port := os.Getenv("PORT")
+	if port == "" {
+		port = "8080"
+	}
 	slog.Info("Server is starting", "port", port)
 	if err := http.ListenAndServe(":"+port, r); err != nil {
 		slog.Error("Server failed", "err", err)
